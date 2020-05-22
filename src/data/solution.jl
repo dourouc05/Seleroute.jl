@@ -3,8 +3,8 @@ Data structure for holding a routing in a path-based manner.
 """
 struct Routing
     data::RoutingData
-    path_flows::Dict{Edge, Dict{Int, Float64}} # Demand -> path -> flow.
-    edge_flows::Dict{Edge, Dict{Edge, Float64}} # Demand -> edge -> flow.
+    path_flows::Dict{Edge{Int}, Dict{Int, Float64}} # Demand -> path -> flow.
+    edge_flows::Dict{Edge{Int}, Dict{Edge{Int}, Float64}} # Demand -> edge -> flow.
     demands::Vector{Edge} # List of demand; the only goal of this vector is to fix
     # the order of the demands (i.e. have demand IDs).
     paths::Vector{Vector{Edge}} # A path is a list of edges. This vector stores
@@ -36,9 +36,21 @@ function routing_to_matrix(r::Routing)
 end
 
 function total_flow_in_edge(r::Routing, e::Edge, dm)
-    # TODO: useful?
-    # dm is an optimisation variable.
-    return total_flow_in_edge(r, e, dm, Val(r.data.model_type.type))
+    # dm is an optimisation variable, as the routing is fixed.
+    return total_flow_in_edge(r, e, dm, r.data.model_type.type)
+end
+
+function total_flow_in_edge(r::Routing, e::Edge, dm, ::FormulationType; ε::Float64=1.e-3)
+    # dm is an optimisation variable, as the routing is fixed.
+    # Works for both flow-based and path-based formulations.
+    # Cannot use sum(), as the collection is sometimes empty.
+    flow = 0.0
+    for d in demands(r.data)
+        if e in keys(r.edge_flows[d]) && abs(r.edge_flows[d][e]) > ε
+            flow += r.edge_flows[d][e] * dm[d]
+        end
+    end
+    return flow
 end
 
 """
@@ -68,19 +80,19 @@ struct RoutingSolution
     time_export_ms::Float64
 
     objectives::Vector{Float64}
-    matrices::Vector{Dict{Edge, Float64}}
+    matrices::Vector{Dict{Edge{Int}, Float64}}
     routings::Vector{Routing}
     master_model::RoutingModel
 end
 
 function CertainRoutingSolution(data::RoutingData,
                                 time_precompute_ms::Float64, time_solve_ms::Float64, time_export_ms::Float64,
-                                mu::Float64, matrix::Dict{Edge, Float64}, routing::Routing, model::RoutingModel)
+                                mu::Float64, matrix::Dict{Edge{Int}, Float64}, routing::Routing, model::RoutingModel)
     return RoutingSolution(data, 0, 1, 0, 0, time_precompute_ms, time_solve_ms, time_export_ms,
-                           Float64[mu], Dict{Edge, Float64}[matrix], Routing[routing], model)
+                           Float64[mu], Dict{Edge{Int}, Float64}[matrix], Routing[routing], model)
 end
 
-function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64}; demand=nothing)
+function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64}; demand=nothing, ε::Float64=1.e-5)
     if data.model_type.type != FlowFormulation()
         error("This function can only be used for flow-based formulations; it makes no sense for formulation type $(data.model_type)")
     end
@@ -88,8 +100,8 @@ function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64
     # For each demand, start at the source; follow edges to make up paths.
     # As soon as a path splits into multiple edges at some given vertex,
     # create several paths.
-    path_flows = Dict{Edge, Dict{Int, Float64}}() # demand -> path index -> flow
-    edge_flows = Dict{Edge, Dict{Edge, Float64}}() # demand -> edge -> flow
+    path_flows = Dict{Edge{Int}, Dict{Int, Float64}}() # demand -> path index -> flow
+    edge_flows = Dict{Edge{Int}, Dict{Edge{Int}, Float64}}() # demand -> edge -> flow
     paths = Vector{Edge}[] # list of paths (indexes match those of path_flows)
 
     for d in demands(data)
@@ -98,7 +110,7 @@ function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64
         end
 
         path_flows[d] = Dict{Int, Float64}()
-        edge_flows[d] = Dict{Edge, Float64}()
+        edge_flows[d] = Dict{Edge{Int}, Float64}()
 
         source = src(d)
         target = dst(d)
@@ -107,12 +119,12 @@ function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64
         # of the currently built paths to a *list* of partial paths
         # (in case several paths diverge at some point, then end up
         # using the same edge).
-        d_paths = Dict{Edge, Vector{Pair{Vector{Edge}, Float64}}}()
-        #              ^^^^  ^^^^^^      ^^^^^^^^^^^^  ^^^^^^^
-        #   one edge in the  paths       a path        the current weight
-        #     path from the  being       starting at   of this path
-        #     source to the  built       the source
-        #       destination
+        d_paths = Dict{Edge{Int}, Vector{Pair{Vector{Edge}, Float64}}}()
+        #              ^^^^^^^^^  ^^^^^^      ^^^^^^^^^^^^  ^^^^^^^
+        #        one edge in the  paths       a path        the current weight
+        #          path from the  being       starting at   of this path
+        #          source to the  built       the source
+        #            destination
         # The keys of d_paths are thus edges that should be further explore
 
         # Fill the list of paths with edges from the source.
@@ -124,11 +136,11 @@ function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64
         # Ensure that only edges with some flow are selected for further processing.
         for out_edge in out_edges
             weight = routing[d, out_edge]
-            if iszero(weight)
+            if abs(weight) <= ε
                 continue
             end
-            edge_flows[d][out_edge] = weight
 
+            edge_flows[d][out_edge] = weight
             d_paths[out_edge] = Pair{Vector{Edge}, Float64}[Edge[out_edge] => weight]
         end
 
@@ -137,18 +149,16 @@ function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64
         end
 
         # Iterate through d_paths until empty, filling path_flows/paths on the way when reaching the target.
-        already_dealt_with = Set{Int}() # Nodes that have been met as sources of processed edges.
         while length(d_paths) >= 1
             # Take one edge at random to process it, remove it from d_paths.
             edge = first(keys(d_paths))
             partials = d_paths[edge] # Partial paths from the source and containing this edge.
             delete!(d_paths, edge)
-            push!(already_dealt_with, src(edge))
 
             # Is this edge ending at the target? If so, found a complete path and its weight!
             if dst(edge) == target
                 for partial in partials
-                    if iszero(partial.second)
+                    if abs(partial.second) <= ε
                         continue
                     end
 
@@ -168,7 +178,7 @@ function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64
             for out_edge in out_edges
                 # Compute the total weight going through this edge.
                 weight = routing[d, out_edge]
-                if iszero(weight)
+                if abs(weight) <= ε
                     continue
                 end
                 if ! (out_edge in keys(edge_flows[d]))
@@ -200,14 +210,14 @@ function path_routing_to_flow(data::RoutingData, routing::AbstractMatrix{Float64
     end
 
     # Sum over all paths that cross a given edge to get the total weight of each edge, demand per demand.
-    path_flows = Dict{Edge, Dict{Int, Float64}}()
+    path_flows = Dict{Edge{Int}, Dict{Int, Float64}}()
 
     for k in eachindex(routing)
         demand = k[1]
         path = k[2]
 
         if ! (demand in keys(path_flows))
-            path_flows[demand] = Dict{Edge, Float64}()
+            path_flows[demand] = Dict{Edge{Int}, Float64}()
         end
 
         if ! iszero(routing[k])
@@ -216,9 +226,9 @@ function path_routing_to_flow(data::RoutingData, routing::AbstractMatrix{Float64
     end
 
     # Sum the flows over the demands.
-    edge_flows = Dict{Edge, Dict{Edge, Float64}}()
+    edge_flows = Dict{Edge{Int}, Dict{Edge{Int}, Float64}}()
     for demand in demands(data)
-        edge_flows[demand] = Dict{Edge, Float64}()
+        edge_flows[demand] = Dict{Edge{Int}, Float64}()
         for edge in edges(data)
             total_weight = zero(Float64)
             for p_id in _find_path_ids_with_edge(data, edge)

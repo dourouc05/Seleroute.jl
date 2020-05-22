@@ -24,8 +24,8 @@ function _build_path(state::LightGraphs.AbstractPathState, demand::Edge)
     return [Edge(reverse_nodes[i], reverse_nodes[i - 1]) for i in length(reverse_nodes):-1:2]
 end
 
-function _solve_pricing_problem_master(rd::RoutingData, dual_values_matrices, dual_value_convexity, matrices::Vector{Dict{Edge, Float64}})
-    paths = Dict{Edge, Vector{Edge}}()
+function _solve_pricing_problem_master(rd::RoutingData, dual_values_matrices, dual_value_convexity, matrices::Vector{Dict{Edge{Int}, Float64}})
+    paths = Dict{Edge{Int}, Vector{Edge}}()
 
     for demand in demands(rd)
         # Determine the weight matrix to use for the computations:
@@ -75,7 +75,7 @@ function _solve_pricing_problem_master(rd::RoutingData, dual_values_matrices, du
 end
 
 function _solve_pricing_problem_subproblem(rd::RoutingData, dual_values_capacity)
-    paths = Dict{Edge, Vector{Edge}}()
+    paths = Dict{Edge{Int}, Vector{Edge}}()
 
     # Determine the weight matrix to use for the computations.
     weight_matrix = spzeros(Float64, n_edges(rd), n_edges(rd))
@@ -208,12 +208,13 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::Minim
     return result, current_routing, n_new_paths
 end
 
-function solve_subproblem(rd::RoutingData, rm::RoutingModel, s_rm::RoutingModel, e_bar::Edge, ::Load, ::MinimumMaximum, ::FormulationType, ::CuttingPlane, ::Val{true}, ::ObliviousUncertainty, ::CuttingPlane, ::UncertainDemand)
+function solve_subproblem(rd::RoutingData, rm::RoutingModel, s_rm::RoutingModel, e_bar::Edge, ::Load, ::MinimumMaximum, ::FormulationType, ::Val{true}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
     n_new_paths = 0
     result = nothing
 
     while true
         # Solve the current subproblem.
+        optimize!(s_rm.model)
         result = termination_status(s_rm.model)
 
         # Check if there are still columns to add.

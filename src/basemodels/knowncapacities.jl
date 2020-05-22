@@ -12,7 +12,7 @@ function total_flow_in_edge(rm::RoutingModel, e::Edge)
     return total_flow_in_edge(rm, e, rm.data.model_type.type, Val(UnscaledFlows))
 end
 
-function total_flow_in_edge(rm::RoutingModel, e::Edge, dm::Union{Dict{Edge, Float64}, Nothing})
+function total_flow_in_edge(rm::RoutingModel, e::Edge, dm::Union{Dict{Edge{Int}, Float64}, Nothing})
     # Switch on the flow scale: don't pass a traffic matrix when it's not needed.
     if rm.scaled_flows == UnitaryFlows
         if dm === nothing
@@ -29,15 +29,15 @@ function total_flow_in_edge(rm::RoutingModel, e::Edge, dm::Union{Dict{Edge, Floa
 end
 total_flow_in_edge(rm::RoutingModel, edge::Edge, ::Any...) =
     error("Not implemented: $(rm.data.model_type)")
-total_flow_in_edge(rm::RoutingModel, edge::Edge, dm::Union{Dict{Edge, Float64}, Nothing}, ::Any...) =
+total_flow_in_edge(rm::RoutingModel, edge::Edge, dm::Union{Dict{Edge{Int}, Float64}, Nothing}, ::Any...) =
     error("Not implemented: $(rm.data.model_type)")
 
 # Interpretation of the dm argument: demand -> value
 
-function capacity_constraints(rm::RoutingModel, dm::Union{Dict{Edge, Float64}, Nothing}=nothing)
+function capacity_constraints(rm::RoutingModel, dm::Union{Dict{Edge{Int}, Float64}, Nothing}=nothing)
     # Capacity constraints, one per edge.
     @assert isempty(rm.constraints_capacity)
-    rm.constraints_capacity = Dict{Edge, Any}()
+    rm.constraints_capacity = Dict{Edge{Int}, Any}()
     for e in edges(rm.data)
         flow = total_flow_in_edge(rm, e, dm)
         if ! iszero(flow)
@@ -46,7 +46,7 @@ function capacity_constraints(rm::RoutingModel, dm::Union{Dict{Edge, Float64}, N
     end
 end
 
-function mu_capacity_constraints(rm::RoutingModel, dm::Union{Dict{Edge, Float64}, Nothing}=nothing)
+function mu_capacity_constraints(rm::RoutingModel, dm::Union{Dict{Edge{Int}, Float64}, Nothing}=nothing)
     # Difference with capacity_constraints: <= mu * capacity, instead of simply capacity.
 
     # Create the mu variable if it does not exist yet.
@@ -57,7 +57,7 @@ function mu_capacity_constraints(rm::RoutingModel, dm::Union{Dict{Edge, Float64}
 
     # Capacity constraints, one per edge.
     @assert isempty(rm.constraints_capacity)
-    rm.constraints_capacity = Dict{Edge, Any}()
+    rm.constraints_capacity = Dict{Edge{Int}, Any}()
     for e in edges(rm.data)
         flow = total_flow_in_edge(rm, e, dm)
         if ! iszero(flow)

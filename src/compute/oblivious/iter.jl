@@ -1,8 +1,15 @@
 # Useful data structures for all iterative algorithms.
-struct ConsideredTrafficMatrix
+struct ConsideredTrafficMatrix{T}
     subproblem_objective::Float64
     subproblem_edge::Edge
-    matrix::Dict{Edge, Float64}
+    matrix::Dict{Edge{T}, Float64}
+end
+
+function ConsideredTrafficMatrix(objective::Float64, edge::Edge, matrix::JuMP.Containers.DenseAxisArray)
+    # Complete type for matrix:
+    # {Float64,1,Tuple{LightGraphs.SimpleGraphs.SimpleEdgeIter{SimpleDiGraph{Int64}}},Tuple{Dict{LightGraphs.SimpleGraphs.SimpleEdge{Int64},Int64}}}
+    matrix_as_dict = Dict(k => matrix[k] for k in keys(matrix))
+    return ConsideredTrafficMatrix(objective, edge, matrix_as_dict)
 end
 
 function ConsideredTrafficMatrix(objective::Float64, edge::Edge, matrix)
@@ -10,14 +17,17 @@ function ConsideredTrafficMatrix(objective::Float64, edge::Edge, matrix)
     return ConsideredTrafficMatrix(objective, edge, matrix_as_dict)
 end
 
+
 # Interface for a formulation and default implementations (only providing error messages).
 
 oblivious_subproblem_model(m::Model, rd::RoutingData, e_bar::Edge, current_routing::Routing, ::Val...) =
     error("Not implemented: $(rd.sub_model_type)")
 
-add_traffic_matrix(rm::RoutingModel, matrix::ConsideredTrafficMatrix, x::Val...) =
-    add_traffic_matrix(rm, matrix.matrix, x...) # Just for unboxing.
-add_traffic_matrix(rm::RoutingModel, matrix::Dict{Edge, Float64}, ::Val...) =
+add_traffic_matrix(rm::RoutingModel, matrix::ConsideredTrafficMatrix) =
+    add_traffic_matrix(rm, matrix.matrix) # Unbox ConsideredTrafficMatrix.
+add_traffic_matrix(rm::RoutingModel, matrix::Dict{Edge{Int}, Float64}) =
+    add_traffic_matrix(rm, matrix, rm.data.model_type.type) # Guess the formulation type.
+add_traffic_matrix(rm::RoutingModel, matrix::Dict{Edge{Int}, Float64}, ::Any) =
     error("Not implemented: $(rm.data.model_type)")
 
 """
@@ -36,7 +46,7 @@ solve_subproblem(rd::RoutingData, ::RoutingModel, rm::RoutingModel, e_bar::Edge,
     error("Model type not yet implemented: $(rd.model_type)")
 
 # Default implementation of the master problem and subproblem. It works without trouble if there is no column generation.
-function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::ObliviousUncertainty, ::CuttingPlane, ::UncertainDemand)
+function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
     @assert rm.mu !== nothing
 
     optimize!(rm.model)
@@ -53,6 +63,7 @@ function solve_subproblem(rd::RoutingData, ::RoutingModel, s_rm::RoutingModel, e
     if s_rm.demand !== nothing
         candidate_matrix = ConsideredTrafficMatrix(objective_value(s_rm.model), e_bar, value.(s_rm.demand))
     else
+        # If there is no demand variable available in the formulation, find it back from the routing.
         routing_v = value.(s_rm.routing)
         demand = Dict(d => sum(routing_v[d, p_id] for p_id in rd.demand_to_path_ids[d]) for d in demands(rd))
         candidate_matrix = ConsideredTrafficMatrix(objective_value(s_rm.model), e_bar, demand)
@@ -61,7 +72,7 @@ function solve_subproblem(rd::RoutingData, ::RoutingModel, s_rm::RoutingModel, e
     return s_result, 0, candidate_matrix
 end
 
-function add_traffic_matrix(rm::RoutingModel, matrix::Dict{Edge, Float64}, ::FormulationType)
+function add_traffic_matrix(rm::RoutingModel, matrix::Dict{Edge{Int}, Float64}, ::FormulationType)
     # Compute the congestion for this traffic matrix if asked for.
     opt_d = if rm.data.model_exact_opt_d
         compute_max_load(rm.data, matrix) # Exact value for this traffic matrix (1.0, with numerical errors).
@@ -71,7 +82,7 @@ function add_traffic_matrix(rm::RoutingModel, matrix::Dict{Edge, Float64}, ::For
 
     # Add a few capacity constraints.
     @assert ! (matrix in keys(rm.constraints_matrices))
-    rm.constraints_matrices[matrix] = Dict{Edge, Any}()
+    rm.constraints_matrices[matrix] = Dict{Edge{Int}, Any}()
     nb_added_cuts = 0 # Cannot update nb_added_cuts all at once, due to the condition within the loop.
     for e in edges(rm.data)
         flow = total_flow_in_edge(rm, e, matrix)
@@ -91,6 +102,7 @@ function oblivious_subproblem_model(m::Model, rd::RoutingData, e_bar::Edge, curr
 
     @variable(m, demand[d in demands(rd)] >= 0)
     rm = basic_routing_model_unscaled(m, rd, demand, type)
+    rm.demand = demand
 
     # The demand matrix must respect the capacity constraints and the existing routing.
     # In other words, normalise the matrix so that its optimum congestion OPT(D) is 1.
@@ -108,7 +120,7 @@ end
 # Main loop for all iterative implementations of oblivious routing for uncertain demand.
 # Also works with column generation.
 
-function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::FormulationType, ::Val, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
+function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::FormulationType, cg::Val, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
     start = time_ns()
 
     # Create the master problem.
@@ -121,8 +133,8 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::Formulatio
 
     objectives = Float64[]
     routings = Routing[]
-    matrices = Dict{Edge, Float64}[]
-    matrices_set = Set{Dict{Edge, Float64}}()
+    matrices = Dict{Edge{Int}, Float64}[]
+    matrices_set = Set{Dict{Edge{Int}, Float64}}()
     it = 1
     total_matrices = 0
     total_cuts = 0
@@ -170,9 +182,9 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::Formulatio
             # Solve the corresponding separation problem.
             s_m = Model(rd.solver)
             set_silent(s_m)
-            s_rm = oblivious_subproblem_model(s_m, rd, e_bar, current_routing)
+            s_rm = oblivious_subproblem_model(s_m, rd, e_bar, current_routing, type)
 
-            s_result, n_sub_new_paths, candidate_matrix = solve_subproblem(rd, rm, s_rm, e_bar, obj, formulation, cg, algo, unc, uncparams)
+            s_result, n_sub_new_paths, candidate_matrix = solve_subproblem(rd, rm, s_rm, e_bar, Load(), MinimumMaximum(), type, cg, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
             n_new_paths_this_iter += n_sub_new_paths
             total_new_paths += n_sub_new_paths
 
@@ -244,10 +256,10 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::Formulatio
         # If needed, plot the results. Don't plot for the last iteration,
         # as this is automatically performed (the whole solution is always
         # plotted after the main loop).
-        if plot_each_iteration
-            rd.logmessage("== DBG == Starting to plot the results...")
-            # plot(rd, current_routing, basename="$(rd.output_folder)/graph_it$(it)")
-        end
+        # if rd.plot_each_iteration # TODO: reintroduce.
+        #     rd.logmessage("== DBG == Starting to plot the results...")
+        #     # plot(rd, current_routing, basename="$(rd.output_folder)/graph_it$(it)")
+        # end
 
         # Prepare for the next iteration.
         it += 1

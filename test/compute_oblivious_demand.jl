@@ -24,7 +24,7 @@
     d1 = Edge(1, 5)
     d2 = Edge(2, 6)
 
-    @testset "$type$(cg ? " with column generation" : ""))" for (type, cg) in [(FlowFormulation, false), (PathFormulation, false), (PathFormulation, true)]
+    @testset "$type$(cg ? " with column generation" : "")" for (type, cg) in [(FlowFormulation, false), (PathFormulation, false), (PathFormulation, true)]
         @testset "$algo" for algo in [CuttingPlane, DualReformulation]
             if cg && algo == DualReformulation
                 # Not yet implemented.
@@ -38,7 +38,13 @@
             @test r !== nothing
             @test r.data == rd
             @test r.n_iter > 0
-            @test r.n_matrices >= 1
+            if algo == CuttingPlane
+                @test r.n_matrices >= 1
+            else
+                # Matrix output is disabled in this test.
+                @test algo == DualReformulation
+                @test r.n_matrices == 0
+            end
             if cg
                 @test r.n_columns > 0
             else
@@ -47,15 +53,29 @@
             if algo == CuttingPlane
                 @test r.n_cuts > 0
             else
+                @test algo == DualReformulation
                 @test r.n_cuts == 0
             end
             @test r.time_precompute_ms > 0.0
             @test r.time_solve_ms > 0.0
-            @test r.time_export_ms == 0.0
+            if algo == CuttingPlane
+                @test r.time_export_ms > 0.0
+            else
+                @test algo == DualReformulation
+                @test r.time_export_ms == 0.0
+            end
             @test length(r.objectives) >= 1
-            @test length(r.matrices) >= 1
+            if algo == CuttingPlane
+                @test length(r.matrices) >= 1
+            else
+                @test algo == DualReformulation
+                # Matrix output is disabled in this test.
+                @test length(r.matrices) == 0
+            end
             @test length(r.routings) >= 1
             @test r.master_model !== nothing
+
+            @test r.objectives[end] ≈ 1.0 atol=1.e-6
         end
     end
 end

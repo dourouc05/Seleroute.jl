@@ -16,7 +16,7 @@
     k = SimpleDiGraph(4)
     add_edge!(k, 1, 4)
     d = Edge(1, 4)
-    dm = Dict{Edge, Float64}(d => 4.0)
+    dm = Dict{Edge{Int}, Float64}(d => 4.0)
 
     # Include solver-specific tests.
     include("compute_certain.jl")
@@ -34,5 +34,5 @@
         end
     end
 
-    # include("compute_oblivious_demand.jl")
+    include("compute_oblivious_demand.jl")
 end

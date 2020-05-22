@@ -66,10 +66,10 @@ mutable struct RoutingData
     model_exact_opt_d::Bool
     model_robust_reformulation_traffic_matrices::Bool
 
-    traffic_matrix::Dict{Edge, Float64}
+    traffic_matrix::Dict{Edge{Int}, Float64}
 
     paths_edges::Vector{Vector{Edge}}
-    demand_to_path_ids::Dict{Edge, Vector{Int}}
+    demand_to_path_ids::Dict{Edge{Int}, Vector{Int}}
     path_id_to_demand::Dict{Int, Edge}
 
     locs_x::Union{Vector{Float64}, Nothing}
@@ -164,7 +164,7 @@ function RoutingData(g::AbstractMetaGraph, # Not MetaDiGraph, to show a more int
                      model_all_traffic_matrices::Bool=false,
                      model_exact_opt_d::Bool=false,
                      model_robust_reformulation_traffic_matrices::Bool=false,
-                     traffic_matrix::Dict{Edge, Float64}=Dict{Edge, Float64}(),
+                     traffic_matrix::Dict{Edge{Int}, Float64}=Dict{Edge{Int}, Float64}(),
                      npaths::Int=20,
                      remove_unreachable_nodes::Bool=true,
                      remove_unsatisfiable_demands::Bool=true,
@@ -232,7 +232,7 @@ function RoutingData(g::AbstractMetaGraph, # Not MetaDiGraph, to show a more int
         # Precompute some shortest paths and directly assign them numbers.
         # A path is a sequence of integers, each being the index of a node.
         paths = Vector{Int}[]
-        demand_to_path_ids = Dict{Edge, Vector{Int}}()
+        demand_to_path_ids = Dict{Edge{Int}, Vector{Int}}()
         path_id_to_demand = Dict{Int, Edge}()
 
         for d in edges(k)
@@ -256,7 +256,7 @@ function RoutingData(g::AbstractMetaGraph, # Not MetaDiGraph, to show a more int
     else
         # Not a path-based formulation: create empty collections of the right type.
         paths_edges = Vector{Edge}[]
-        demand_to_path_ids = Dict{Edge, Vector{Int}}()
+        demand_to_path_ids = Dict{Edge{Int}, Vector{Int}}()
         path_id_to_demand = Dict{Int, Edge}()
     end
 

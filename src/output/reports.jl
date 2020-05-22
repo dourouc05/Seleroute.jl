@@ -2,7 +2,7 @@ function export_traffic_matrix(tm::ConsideredTrafficMatrix, basename="$(@__DIR__
     export_traffic_matrix(tm.matrix, "$(basename)_$(tm.subproblem_edge.src)_to_$(tm.subproblem_edge.dst)")
 end
 
-function export_traffic_matrix(tm::Dict{Edge, Float64}, filename::String)
+function export_traffic_matrix(tm::Dict{Edge{Int}, Float64}, filename::String)
     open(filename, "w") do f
         write(f, "Source, Destination, Traffic\n")
         for (edge, value) in tm

@@ -6,7 +6,7 @@ function random_similar(demands::Vector{Edge}, avg::Float64, stdev::Float64, rng
     return Dict(demands[i] => values[i] for i in length(demands))
 end
 
-random_similar(demands::Dict{Edge, Float64}, avg::Float64, stdev::Float64, rng) =
+random_similar(demands::Dict{Edge{Int}, Float64}, avg::Float64, stdev::Float64, rng) =
     random_similar(collect(keys(demands)), avg, stdev, rng)
 
 random_similar(rd::RoutingData, avg::Float64, stdev::Float64, rng) =

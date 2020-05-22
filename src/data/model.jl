@@ -25,29 +25,29 @@ mutable struct RoutingModel
     dual_delta
 
     ## Constraints.
-    constraints_capacity::Dict{Edge, Any} # Edge -> constraint ref
+    constraints_capacity::Dict{Edge{Int}, Any} # Edge -> constraint ref
 
     # Flow-based.
-    constraints_source_in::Dict{Edge, Any} # Demand -> constraint ref
-    constraints_source_out::Dict{Edge, Any} # Demand -> constraint ref
-    constraints_target_in::Dict{Edge, Any} # Demand -> constraint ref
-    constraints_target_out::Dict{Edge, Any} # Demand -> constraint ref
-    constraints_balance::Dict{Edge, Dict{Int, Any}} # Demand -> node -> constraint ref
+    constraints_source_in::Dict{Edge{Int}, Any} # Demand -> constraint ref
+    constraints_source_out::Dict{Edge{Int}, Any} # Demand -> constraint ref
+    constraints_target_in::Dict{Edge{Int}, Any} # Demand -> constraint ref
+    constraints_target_out::Dict{Edge{Int}, Any} # Demand -> constraint ref
+    constraints_balance::Dict{Edge{Int}, Dict{Int, Any}} # Demand -> node -> constraint ref
 
     # Path-based.
     constraints_convexity
-    constraints_matrices::Dict{Dict{Edge, Float64}, Dict{Edge, Any}} # Matrix::Dict{Edge, Float64} -> edge -> constraint ref
-    constraints_uncertainty_set::Dict{Edge, Dict{Edge, ConstraintRef}} # Edge -> demand -> constraint ref
+    constraints_matrices::Dict{Dict{Edge{Int}, Float64}, Dict{Edge{Int}, Any}} # Matrix::Dict{Edge{Int}, Float64} -> edge -> constraint ref
+    constraints_uncertainty_set::Dict{Edge{Int}, Dict{Edge{Int}, ConstraintRef}} # Edge -> demand -> constraint ref
 
     function RoutingModel(data::RoutingData, model::Model, scaled_flows::FlowScaling, mu, routing;
         demand=nothing,
         dual=nothing, dual_alpha=nothing, dual_beta=nothing, dual_gamma=nothing, dual_delta=nothing,
-        constraints_capacity::Dict{Edge, Any}=Dict{Edge, Any}(),
-        constraints_source_in::Dict{Edge, Any}=Dict{Edge, Any}(), constraints_source_out::Dict{Edge, Any}=Dict{Edge, Any}(),
-        constraints_target_in::Dict{Edge, Any}=Dict{Edge, Any}(), constraints_target_out::Dict{Edge, Any}=Dict{Edge, Any}(),
-        constraints_balance::Dict{Edge, Dict{Int, Any}}=Dict{Edge, Dict{Int, Any}}(),
-        constraints_convexity=nothing, constraints_matrices::Dict{Dict{Edge, Float64}, Dict{Edge, Any}}=Dict{Dict{Edge, Float64}, Dict{Edge, Any}}(),
-        constraints_uncertainty_set::Dict{Edge, Dict{Edge, ConstraintRef}}=Dict{Edge, Dict{Edge, ConstraintRef}}()
+        constraints_capacity::Dict{Edge{Int}, Any}=Dict{Edge{Int}, Any}(),
+        constraints_source_in::Dict{Edge{Int}, Any}=Dict{Edge{Int}, Any}(), constraints_source_out::Dict{Edge{Int}, Any}=Dict{Edge{Int}, Any}(),
+        constraints_target_in::Dict{Edge{Int}, Any}=Dict{Edge{Int}, Any}(), constraints_target_out::Dict{Edge{Int}, Any}=Dict{Edge{Int}, Any}(),
+        constraints_balance::Dict{Edge{Int}, Dict{Int, Any}}=Dict{Edge{Int}, Dict{Int, Any}}(),
+        constraints_convexity=nothing, constraints_matrices::Dict{Dict{Edge{Int}, Float64}, Dict{Edge{Int}, Any}}=Dict{Dict{Edge{Int}, Float64}, Dict{Edge{Int}, Any}}(),
+        constraints_uncertainty_set::Dict{Edge{Int}, Dict{Edge{Int}, ConstraintRef}}=Dict{Edge{Int}, Dict{Edge{Int}, ConstraintRef}}()
     )
         @assert routing !== nothing
 

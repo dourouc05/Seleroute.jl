@@ -1,4 +1,4 @@
-function objective_edge_expression(::RoutingModel, obj_edge::EdgeWiseObjectiveFunction, ::Edge, ::Dict{Edge, Float64})
+function objective_edge_expression(::RoutingModel, obj_edge::EdgeWiseObjectiveFunction, ::Edge, ::Dict{Edge{Int}, Float64})
     error("Edge-wise objective function not implemented: $obj_edge")
 end
 
@@ -11,11 +11,11 @@ function objective_edge_expression(rm::RoutingModel, obj_edge::EdgeWiseObjective
     return objective_edge_expression(rm, obj_edge, e, rm.data.traffic_matrix)
 end
 
-function objective_edge_expression(rm::RoutingModel, ::Load, e::Edge, dm::Dict{Edge, Float64})
+function objective_edge_expression(rm::RoutingModel, ::Load, e::Edge, dm::Dict{Edge{Int}, Float64})
     return total_flow_in_edge(rm, e, dm) / get_prop(rm.data.g, e, :capacity)
 end
 
-function objective_edge_expression(rm::RoutingModel, ::KleinrockLoad, e::Edge, dm::Dict{Edge, Float64})
+function objective_edge_expression(rm::RoutingModel, ::KleinrockLoad, e::Edge, dm::Dict{Edge{Int}, Float64})
     # Model the function load / (1 - load). The constraint is a rotated SOCP:
     #     load / (1 - load) ≤ kl    ⟺    (√2)² ≤ 2 (1 - load) (1 + kl)
     kleinrock = @variable(rm.model, base_name="kleinrock[$e]", lower_bound=0)
@@ -27,7 +27,7 @@ function objective_edge_expression(rm::RoutingModel, ::KleinrockLoad, e::Edge, d
     return kleinrock
 end
 
-function objective_edge_expression(rm::RoutingModel, ::FortzThorupLoad, e::Edge, dm::Dict{Edge, Float64})
+function objective_edge_expression(rm::RoutingModel, ::FortzThorupLoad, e::Edge, dm::Dict{Edge{Int}, Float64})
     fortzthorup = @variable(rm.model, base_name="fortzthorup[$e]", lower_bound=0)
     load_e = objective_edge_expression(rm, Load(), e, dm)
 

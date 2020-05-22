@@ -1,10 +1,10 @@
 function _basic_routing_model_unitary_flow_conservation_flow_formulation(m::Model, rd::RoutingData, routing, f)
     # Write the flow-conservation constraints, the rhs being given by f. This generalises both unitary and unscaled models.
-    cstrs_src_in = Dict{Edge, Any}()
-    cstrs_src_out = Dict{Edge, Any}()
-    cstrs_dst_in = Dict{Edge, Any}()
-    cstrs_dst_out = Dict{Edge, Any}()
-    cstrs_bal = Dict{Edge, Dict{Int, Any}}()
+    cstrs_src_in = Dict{Edge{Int}, Any}()
+    cstrs_src_out = Dict{Edge{Int}, Any}()
+    cstrs_dst_in = Dict{Edge{Int}, Any}()
+    cstrs_dst_out = Dict{Edge{Int}, Any}()
+    cstrs_bal = Dict{Edge{Int}, Dict{Int, Any}}()
 
     for d in demands(rd)
         # TODO: only generate these constraints when there are edges considered (mostly for == 0: don't always generate them)
@@ -44,7 +44,7 @@ function basic_routing_model_unitary(m::Model, rd::RoutingData, ::FlowFormulatio
         constraints_balance=cstrs_bal)
 end
 
-function basic_routing_model_unscaled(m::Model, rd::RoutingData, dm::Dict{Edge, Float64}, ::FlowFormulation)
+function basic_routing_model_unscaled(m::Model, rd::RoutingData, dm, ::FlowFormulation)
     # dm is either a traffic matrix or variables! The only guarantee is that it is indexable by demands.
 
     @variable(m, routing[d in demands(rd), e in edges(rd)] >= 0)
@@ -58,7 +58,7 @@ function basic_routing_model_unscaled(m::Model, rd::RoutingData, dm::Dict{Edge, 
         constraints_balance=cstrs_bal)
 end
 
-function total_flow_in_edge(rm::RoutingModel, e::Edge, dm::Dict{Edge, Float64}, ::FlowFormulation, ::Val{UnitaryFlows})
+function total_flow_in_edge(rm::RoutingModel, e::Edge, dm::Dict{Edge{Int}, Float64}, ::FlowFormulation, ::Val{UnitaryFlows})
     flow = AffExpr(0.0)
     for d in keys(dm)
         if ! iszero(dm[d])

@@ -172,7 +172,7 @@ function _add_path_to_subproblem_formulation(rd::RoutingData, s_rm::RoutingModel
     end
 end
 
-function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Val{Load}, ::Val{MinimumMaximum}, formulation::Val, ::Val{true}, ::Val{ObliviousUncertainty}, ::Val{CuttingPlane}, ::Val{UncertainDemand})
+function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::MinimumMaximum, formulation::FormulationType, ::Val{true}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
     n_new_paths = 0
     @assert rm.mu !== nothing
 
@@ -208,7 +208,7 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Val{Load}, ::
     return result, current_routing, n_new_paths
 end
 
-function solve_subproblem(rd::RoutingData, rm::RoutingModel, s_rm::RoutingModel, e_bar::Edge, ::Val{Load}, ::Val{MinimumMaximum}, formulation::Val, ::Val{true}, ::Val{ObliviousUncertainty}, ::Val{CuttingPlane}, ::Val{UncertainDemand})
+function solve_subproblem(rd::RoutingData, rm::RoutingModel, s_rm::RoutingModel, e_bar::Edge, ::Load, ::MinimumMaximum, ::FormulationType, ::CuttingPlane, ::Val{true}, ::ObliviousUncertainty, ::CuttingPlane, ::UncertainDemand)
     n_new_paths = 0
     result = nothing
 

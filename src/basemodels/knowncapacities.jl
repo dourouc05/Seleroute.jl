@@ -1,15 +1,15 @@
 # TODO: type for dm::DemandMatrix? or TrafficMatrix?
 
 basic_routing_model_unitary(m::Model, rd::RoutingData) =
-    basic_routing_model_unitary(m, rd, Val(rd.model_type.type))
-basic_routing_model_unitary(m::Model, rd::RoutingData, ::Val...) =
+    basic_routing_model_unitary(m, rd, rd.model_type.type)
+basic_routing_model_unitary(m::Model, rd::RoutingData, ::Any...) =
     error("Not implemented: $(rd.model_type)")
-basic_routing_model_unscaled(m::Model, rd::RoutingData, ::Val...) =
+basic_routing_model_unscaled(m::Model, rd::RoutingData, ::Any...) =
     error("Not implemented: $(rd.model_type)")
 
 function total_flow_in_edge(rm::RoutingModel, e::Edge)
     @assert rm.scaled_flows == UnscaledFlows
-    return total_flow_in_edge(rm, e, Val(rm.data.model_type.type), Val(UnscaledFlows))
+    return total_flow_in_edge(rm, e, rm.data.model_type.type, Val(UnscaledFlows))
 end
 
 function total_flow_in_edge(rm::RoutingModel, e::Edge, dm::Union{Dict{Edge, Float64}, Nothing})
@@ -19,17 +19,17 @@ function total_flow_in_edge(rm::RoutingModel, e::Edge, dm::Union{Dict{Edge, Floa
             dm = rm.data.traffic_matrix
         end
         @assert dm !== nothing
-        return total_flow_in_edge(rm, e, dm, Val(rm.data.model_type.type), Val(UnitaryFlows))
+        return total_flow_in_edge(rm, e, dm, rm.data.model_type.type, Val(UnitaryFlows))
     elseif rm.scaled_flows == UnscaledFlows
         # dm not needed.
-        return total_flow_in_edge(rm, e, Val(rm.data.model_type.type), Val(UnscaledFlows))
+        return total_flow_in_edge(rm, e, rm.data.model_type.type, Val(UnscaledFlows))
     else
         error("Not implemented: $(rm.data.model_type)")
     end
 end
-total_flow_in_edge(rm::RoutingModel, edge::Edge, ::Val...) =
+total_flow_in_edge(rm::RoutingModel, edge::Edge, ::Any...) =
     error("Not implemented: $(rm.data.model_type)")
-total_flow_in_edge(rm::RoutingModel, edge::Edge, dm::Union{Dict{Edge, Float64}, Nothing}, ::Val...) =
+total_flow_in_edge(rm::RoutingModel, edge::Edge, dm::Union{Dict{Edge, Float64}, Nothing}, ::Any...) =
     error("Not implemented: $(rm.data.model_type)")
 
 # Interpretation of the dm argument: demand -> value

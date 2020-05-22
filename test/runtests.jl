@@ -1,7 +1,7 @@
-using ECOS
-using Test
+using Test, InteractiveUtils
 
 using JuMP
+using ECOS
 using LightGraphs, MetaGraphs
 
 using Seleroute

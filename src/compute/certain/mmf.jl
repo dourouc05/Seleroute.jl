@@ -1,6 +1,6 @@
 # TODO: column generation for all these functions.
 
-function compute_routing(rd::RoutingData, obj_edge::Val, ::Val{MinMaxFair}, ::Val, ::Val{false}, ::Val{Automatic}, ::Val{NoUncertaintyHandling}, ::Val{NoUncertainty})
+function compute_routing(rd::RoutingData, obj_edge::EdgeWiseObjectiveFunction, ::MinMaxFair, ::FormulationType, ::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
     start = time_ns()
 
     # Create the problem.

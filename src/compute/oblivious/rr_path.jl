@@ -1,8 +1,8 @@
-function master_formulation(rd::RoutingData, solver, type::Val{PathFormulation})
+function master_formulation(rd::RoutingData, ::PathFormulation)
     m = Model(rd.solver)
     set_silent(m)
 
-    rm = basic_routing_model_unitary(m, rd, type) # Includes convexity constraint.
+    rm = basic_routing_model_unitary(m, rd, PathFormulation()) # Includes convexity constraint.
 
     @variable(m, mu >= 0)
     @objective(m, Min, mu)

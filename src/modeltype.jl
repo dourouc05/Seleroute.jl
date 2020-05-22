@@ -1,5 +1,5 @@
 """
-The edge-wise objective function to optimise. These values are possible:
+The edge-wise objective function to optimise. These values are natively supported:
 
 * `Load`: the load of each edge is considered.
 * `KleinrockLoad`: Kleinrock function is applied on the load.
@@ -9,15 +9,15 @@ Kleinrock function is defined as:
 
 ``K(x) = \\frac{x}{1-x}``
 """
-@enum EdgeWiseObjectiveFunction begin
-    Load
-    KleinrockLoad
-    FortzThorupLoad
-end
+abstract type EdgeWiseObjectiveFunction end
+
+struct Load <: EdgeWiseObjectiveFunction end
+struct KleinrockLoad <: EdgeWiseObjectiveFunction end
+struct FortzThorupLoad <: EdgeWiseObjectiveFunction end
 
 """
 The aggregation-function objective to optimise, giving one objective function aggregating
-all the components for each edge (indicated by `EdgeWiseObjectiveFunction`). These values are possible:
+all the components for each edge (indicated by `EdgeWiseObjectiveFunction`). These values are natively supported:
 
 * `MinimumTotal`: the total considered value is minimised.
 * `MinimumMaximum`: the maximum considered value is minimised.
@@ -30,14 +30,14 @@ It becomes a min-max fair solution if the function is nonincreasing. In practice
 using `MinMaxFair` with `KleinrockLoad` or `Load` should give the same solution. The solver will
 not forbid such combinations, though.
 """
-@enum AggregationObjectiveFunction begin
-    MinimumTotal
-    MinimumMaximum
-    MinMaxFair
-end
+abstract type AggregationObjectiveFunction end
+
+struct MinimumTotal <: AggregationObjectiveFunction end
+struct MinimumMaximum <: AggregationObjectiveFunction end
+struct MinMaxFair <: AggregationObjectiveFunction end
 
 """
-The type of formulation that is used to solve the routing problem. There are two main families of formulations:
+The type of formulation that is used to solve the routing problem. This package natively supports two main families of formulations:
 
 * `FlowFormulation`: each edge is explicitly present in the model
 * `PathFormulation`: the model uses path variables. The path-based formulations can be solved in two ways:
@@ -45,13 +45,13 @@ The type of formulation that is used to solve the routing problem. There are two
     the solution is only approximate, and no approximation factor is guaranteed
   * column generation: new paths are added on the fly, when they might improve the solution
 """
-@enum FormulationType begin
-    FlowFormulation
-    PathFormulation
-end
+abstract type FormulationType end
+
+struct FlowFormulation <: FormulationType end
+struct PathFormulation <: FormulationType end
 
 """
-For robust and oblivious uncertainties, there are multiple algorithm choices:
+For robust and oblivious uncertainties, this package natively offers multiple algorithm choices:
 
 * `Automatic`: let the package decide which algorith to use
 * `CuttingPlane`: use an iterative cutting-plane algorithm (solves many small problems)
@@ -59,15 +59,15 @@ For robust and oblivious uncertainties, there are multiple algorithm choices:
 
 For other types of uncertainty, use the value `Automatic`.
 """
-@enum AlgorithmChoice begin
-    Automatic
-    CuttingPlane
-    DualReformulation
-    # TODO: Different algorithms for MMF?
-end
+abstract type AlgorithmChoice end
+
+struct Automatic <: AlgorithmChoice end
+struct CuttingPlane <: AlgorithmChoice end
+struct DualReformulation <: AlgorithmChoice end
+# TODO: Different algorithms for MMF?
 
 """
-The way uncertainty is implemented. These values are possible:
+The way uncertainty is implemented. These values are natively supported:
 
 * `NoUncertaintyHandling`: the uncertainty is not taken into account, only nominal values are used
 * `StochasticUncertainty`: the uncertainty is implemented through stochastic optimisation,
@@ -77,37 +77,39 @@ The way uncertainty is implemented. These values are possible:
 * `ObliviousUncertainty`: the uncertainty is implemented through oblivious optimisation,
   i.e. the unknown parameters belong to an unbouded uncertainty set
 """
-@enum UncertaintyHandling begin
-    NoUncertaintyHandling
-    StochasticUncertainty
-    RobustUncertainty
-    ObliviousUncertainty
-end
+abstract type UncertaintyHandling end
+
+struct NoUncertaintyHandling <: UncertaintyHandling end
+struct StochasticUncertainty <: UncertaintyHandling end
+struct RobustUncertainty <: UncertaintyHandling end
+struct ObliviousUncertainty <: UncertaintyHandling end
 
 """
-The parameters of the problem that can see uncertainty. These values are possible:
+The parameters of the problem that can see uncertainty. These values are natively supported:
 
 * `NoUncertainty`: there is no uncertainty in the problem
 * `UncertainDemand`: the demand to route are not fully known, but the topology has no uncertainty
 * `UncertainCapacity`: the links have unknown capacities, but the demands to route are fully known
 """
-@enum UncertainParameters begin
-    NoUncertainty
-    UncertainDemand
-    UncertainCapacity
-end
+abstract type UncertainParameters end
+
+struct NoUncertainty <: UncertainParameters end
+struct UncertainDemand <: UncertainParameters end
+struct UncertainCapacity <: UncertainParameters end
 
 """
-Parameterising the way a routing-optimisation problem must be solved. Four parameters must be chosen (independently
+Parameterising the way a routing-optimisation problem must be solved. Seven parameters must be chosen (independently
 of each other):
 
-* an objective function, of type `ObjectiveFunction`
+* an edge-wise objective function, which assigns a value for each edge, of type `EdgeWiseObjectiveFunction`
+* an aggregation technique to build the complete objective function from the edge-wise pieces, of type `AggregationObjectiveFunction`
 * a formulation type, of type `FormulationType` (for path-based formulations, column generation can be separately enabled)
+* whether column generation is enabled, only for path-based formulations
 * a way to heandle the uncertainty, of type `UncertaintyHandling`
-* a precise algorithm to solve the instance
+* a precise algorithm to solve the instance, of type `AlgorithmChoice`
 * a definition of which parameters can be afflicted by uncertainty, of type `UncertainParameters`
 
-The exact algorithm used to solve the instance is based on those four parameters.
+The exact algorithm used to solve the instance is based on those seven parameters.
 """
 struct ModelType
     edge_obj::EdgeWiseObjectiveFunction
@@ -120,47 +122,53 @@ struct ModelType
 
     function ModelType(edge_obj::EdgeWiseObjectiveFunction, agg_obj::AggregationObjectiveFunction, type::FormulationType, cg::Bool,
                        algo::AlgorithmChoice, unc::UncertaintyHandling, uncparams::UncertainParameters)
-        is_obj_load = edge_obj in [Load, KleinrockLoad, FortzThorupLoad]
-        if is_obj_load && uncparams == UncertainCapacity
+        is_obj_load = edge_obj in [Load(), KleinrockLoad(), FortzThorupLoad()]
+        if is_obj_load && uncparams == UncertainCapacity()
             error("Load-related edge-wise objective functions like $(edge_obj) are not supposed to be used with capacity uncertainty.")
         end
 
-        if type == FlowFormulation && cg
+        if type == FlowFormulation() && cg
             error("Column generation is not defined for flow formulations")
         end
 
-        if (unc != ObliviousUncertainty && unc != RobustUncertainty) && algo != Automatic
+        if (unc != ObliviousUncertainty() && unc != RobustUncertainty()) && algo != Automatic()
             # TODO: MMF?
             error("Different algorithms are only available for robust- and oblivious-uncertainty models.")
         end
-        if (unc == ObliviousUncertainty || unc == RobustUncertainty) && algo == Automatic
-            algo = DualReformulation # Usually the most efficient one. Could implement heuristics based on numerical experiments.
+        if (unc == ObliviousUncertainty() || unc == RobustUncertainty()) && algo == Automatic()
+            algo = DualReformulation() # Usually the most efficient one. Could implement heuristics based on numerical experiments.
         end
 
-        if (unc == NoUncertaintyHandling && uncparams != NoUncertainty) || (unc == NoUncertaintyHandling && uncparams != NoUncertainty)
+        if (unc == NoUncertaintyHandling() && uncparams != NoUncertainty()) || (unc == NoUncertaintyHandling() && uncparams != NoUncertainty())
             text = "When there is no uncertainty, the parameters UncertaintyHandling"
-            if unc != NoUncertaintyHandling && uncparams == NoUncertainty
-                text *= " ($unc != $NoUncertaintyHandling)"
+            if unc != NoUncertaintyHandling() && uncparams == NoUncertainty()
+                text *= " ($unc != $(NoUncertaintyHandling()))"
             end
             text *= " and UncertainParameters"
-            if unc == NoUncertaintyHandling && uncparams != NoUncertainty
-                text *= " ($uncparams != $NoUncertainty)"
+            if unc == NoUncertaintyHandling() && uncparams != NoUncertainty()
+                text *= " ($uncparams != $(NoUncertainty()))"
             end
             text *= " must match."
             error(text)
         end
 
-        if uncparams == UncertainCapacity
+        if uncparams == UncertainCapacity()
             error("No model implemented uncertainty on link capacity")
         end
 
         # Check that the parameter detection worked.
-        if unc == ObliviousUncertainty || unc == RobustUncertainty
-            @assert algo != Automatic
+        if unc == ObliviousUncertainty() || unc == RobustUncertainty()
+            @assert algo != Automatic()
         end
 
         return new(edge_obj, agg_obj, type, cg, algo, unc, uncparams)
     end
+end
+
+# In case you forgot about parentheses...
+function ModelType(edge_obj::Type, agg_obj::Type, type::Type, cg::Bool,
+                   algo::Type, unc::Type, uncparams::Type)
+    return ModelType(edge_obj(), agg_obj(), type(), cg, algo(), unc(), uncparams())
 end
 
 function Base.copy(mt::ModelType)

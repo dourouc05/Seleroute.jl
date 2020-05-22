@@ -23,8 +23,11 @@ add_traffic_matrix(rm::RoutingModel, matrix::Dict{Edge, Float64}, ::Val...) =
 """
 Return values: `result`, `current_routing`, `n_new_paths`.
 """
-solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Val...) =
+solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Any...) =
     error("Model type not yet implemented: $(rd.model_type)")
+
+solve_master_problem(rd::RoutingData, rm::RoutingModel, mt::ModelType) =
+    solve_master_problem(rd, rm, mt.edge_obj, mt.agg_obj, mt.type, Val(mt.cg), mt.algo, mt.unc, mt.uncparams)
 
 """
 Return values: `result`, `n_new_paths`, `candidate_matrix`.
@@ -33,7 +36,7 @@ solve_subproblem(rd::RoutingData, ::RoutingModel, rm::RoutingModel, e_bar::Edge,
     error("Model type not yet implemented: $(rd.model_type)")
 
 # Default implementation of the master problem and subproblem. It works without trouble if there is no column generation.
-function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Val{Load}, ::Val{MinimumMaximum}, ::Val, ::Val{false}, ::Val{ObliviousUncertainty}, ::Val{CuttingPlane}, ::Val{UncertainDemand})
+function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::ObliviousUncertainty, ::CuttingPlane, ::UncertainDemand)
     @assert rm.mu !== nothing
 
     optimize!(rm.model)
@@ -43,7 +46,7 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Val{Load}, ::
     return result, current_routing, 0
 end
 
-function solve_subproblem(rd::RoutingData, ::RoutingModel, s_rm::RoutingModel, e_bar::Edge, ::Val{Load}, ::Val{MinimumMaximum}, ::Val, ::Val{false}, ::Val{ObliviousUncertainty}, ::Val{CuttingPlane}, ::Val{UncertainDemand})
+function solve_subproblem(rd::RoutingData, ::RoutingModel, s_rm::RoutingModel, e_bar::Edge, ::Load, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
     optimize!(s_rm.model)
     s_result = termination_status(s_rm.model)
 
@@ -58,7 +61,7 @@ function solve_subproblem(rd::RoutingData, ::RoutingModel, s_rm::RoutingModel, e
     return s_result, 0, candidate_matrix
 end
 
-function add_traffic_matrix(rm::RoutingModel, matrix::Dict{Edge, Float64}, ::Union{Val{FlowFormulation}, Val{PathFormulation}})
+function add_traffic_matrix(rm::RoutingModel, matrix::Dict{Edge, Float64}, ::FormulationType)
     # Compute the congestion for this traffic matrix if asked for.
     opt_d = if rm.data.model_exact_opt_d
         compute_max_load(rm.data, matrix) # Exact value for this traffic matrix (1.0, with numerical errors).
@@ -81,7 +84,7 @@ function add_traffic_matrix(rm::RoutingModel, matrix::Dict{Edge, Float64}, ::Uni
     return nb_added_cuts
 end
 
-function oblivious_subproblem_model(m::Model, rd::RoutingData, e_bar::Edge, current_routing::Routing, ::Union{Val{FlowFormulation}, Val{PathFormulation}})
+function oblivious_subproblem_model(m::Model, rd::RoutingData, e_bar::Edge, current_routing::Routing, type::FormulationType)
     # This function may use another formulation than the master. As the communication between the two is limited to
     # traffic matrices, this is no problem.
     # TODO: Think about heuristics to solve the subproblem.
@@ -105,7 +108,7 @@ end
 # Main loop for all iterative implementations of oblivious routing for uncertain demand.
 # Also works with column generation.
 
-function compute_routing(rd::RoutingData, edge_obj::Val{Load}, agg_obj::Val{MinimumMaximum}, formulation::Val, cg::Val, algo::Val{ObliviousUncertainty}, unc::Val{CuttingPlane}, uncparams::Val{UncertainDemand})
+function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::FormulationType, ::Val, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
     start = time_ns()
 
     # Create the master problem.
@@ -127,7 +130,7 @@ function compute_routing(rd::RoutingData, edge_obj::Val{Load}, agg_obj::Val{Mini
 
     while true
         # Solve the current master problem, possibly with column generation.
-        result, current_routing, n_new_paths = solve_master_problem(rd, rm, edge_obj, agg_obj, formulation, cg, algo, unc, uncparams)
+        result, current_routing, n_new_paths = solve_master_problem(rd, rm, rd.model_type)
         total_new_paths += n_new_paths
 
         if rd.export_lps

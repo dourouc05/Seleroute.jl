@@ -11,12 +11,12 @@ struct Routing
     # a mapping from integers (indices in the vector) to paths.
 
     function Routing(data::RoutingData, routing::AbstractMatrix{Float64})
-        if data.model_type.type == FlowFormulation
+        if data.model_type.type == FlowFormulation()
             # If the model is not path-based, translate it.
             path_flows, edge_flows, paths = flow_routing_to_path(data, routing)
             return new(data, path_flows, edge_flows, collect(demands(data)), paths)
         else
-            @assert data.model_type.type == PathFormulation
+            @assert data.model_type.type == PathFormulation()
             # Otherwise, much simpler transformation: the solution is already written in terms of paths.
             path_flows, edge_flows = path_routing_to_flow(data, routing)
             return new(data, path_flows, edge_flows, collect(demands(data)), data.paths_edges)
@@ -81,7 +81,7 @@ function CertainRoutingSolution(data::RoutingData,
 end
 
 function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64}; demand=nothing)
-    if data.model_type.type != FlowFormulation
+    if data.model_type.type != FlowFormulation()
         error("This function can only be used for flow-based formulations; it makes no sense for formulation type $(data.model_type)")
     end
 
@@ -195,7 +195,7 @@ function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64
 end
 
 function path_routing_to_flow(data::RoutingData, routing::AbstractMatrix{Float64})
-    if data.model_type.type != PathFormulation
+    if data.model_type.type != PathFormulation()
         error("This function can only be used for path-based formulations; it makes no sense for formulation type $(data.model_type)")
     end
 

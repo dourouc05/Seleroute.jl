@@ -1,3 +1,5 @@
+struct TestEdgeWise <: EdgeWiseObjectiveFunction end
+
 @testset "Base models: known capacities" begin
     opt = ECOS.Optimizer
 
@@ -20,13 +22,13 @@
         m = Model(opt)
         mt = ModelType(Load, MinimumTotal, FlowFormulation, false, CuttingPlane, ObliviousUncertainty, UncertainDemand)
         rd = RoutingData(g, k, opt, mt)
-        rm = basic_routing_model_unitary(m, rd, Val(FlowFormulation))
+        rm = basic_routing_model_unitary(m, rd, FlowFormulation())
 
-        @test_throws ErrorException basic_routing_model_unitary(m, rd, Val(42))
-        @test_throws ErrorException basic_routing_model_unscaled(m, rd, Val(42))
+        @test_throws ErrorException basic_routing_model_unitary(m, rd, 42)
+        @test_throws ErrorException basic_routing_model_unscaled(m, rd, 42)
 
-        @test_throws ErrorException total_flow_in_edge(rm, Edge(1, 2), Val(42))
-        @test_throws ErrorException total_flow_in_edge(rm, Edge(1, 2), dm, Val(42))
+        @test_throws ErrorException total_flow_in_edge(rm, Edge(1, 2), 42)
+        @test_throws ErrorException total_flow_in_edge(rm, Edge(1, 2), dm, 42)
     end
 
     @testset "Flow" begin
@@ -90,7 +92,7 @@
 
         @testset "Unitary flows" begin
             m = Model(opt)
-            rm = basic_routing_model_unitary(m, rd, Val(FlowFormulation))
+            rm = basic_routing_model_unitary(m, rd, FlowFormulation())
 
             @test rm.data == rd
             @test rm.model == m
@@ -105,7 +107,7 @@
 
         @testset "Unscaled flows" begin
             m = Model(opt)
-            rm = basic_routing_model_unscaled(m, rd, dm, Val(FlowFormulation))
+            rm = basic_routing_model_unscaled(m, rd, dm, FlowFormulation())
 
             @test rm.data == rd
             @test rm.model == m
@@ -120,7 +122,7 @@
 
         @testset "µ-capacited unitary flows" begin
             m = Model(opt)
-            rm = basic_routing_model_unitary(m, rd, Val(FlowFormulation))
+            rm = basic_routing_model_unitary(m, rd, FlowFormulation())
             mu_capacity_constraints(rm, dm)
             @objective(m, Min, rm.mu)
 
@@ -202,7 +204,7 @@
 
         @testset "Unitary flows" begin
             m = Model(opt)
-            rm = basic_routing_model_unitary(m, rd, Val(PathFormulation))
+            rm = basic_routing_model_unitary(m, rd, PathFormulation())
 
             @test rm.data == rd
             @test rm.model == m
@@ -213,7 +215,7 @@
 
         @testset "Unscaled flows" begin
             m = Model(opt)
-            rm = basic_routing_model_unscaled(m, rd, dm, Val(PathFormulation))
+            rm = basic_routing_model_unscaled(m, rd, dm, PathFormulation())
 
             @test rm.data == rd
             @test rm.model == m
@@ -230,28 +232,28 @@
         rd = RoutingData(g, k, local_opt, mt)
         m = Model(local_opt)
         set_silent(m)
-        rm = basic_routing_model_unitary(m, rd, Val(FlowFormulation))
+        rm = basic_routing_model_unitary(m, rd, FlowFormulation())
         dm = Dict{Edge, Float64}(d => 4.0)
 
         # Generic implementation.
-        @test_throws ErrorException objective_edge_expression(rm, Val(42), Edge(1, 2))
+        @test_throws ErrorException objective_edge_expression(rm, TestEdgeWise(), Edge(1, 2))
 
         # Use the local traffic matrix.
         rd_dm = RoutingData(g, k, local_opt, mt, traffic_matrix=dm)
         m_dm = Model(local_opt)
         set_silent(m_dm)
-        rm_dm = basic_routing_model_unitary(m_dm, rd_dm, Val(FlowFormulation))
-        @test objective_edge_expression(rm_dm, Val(Load), Edge(1, 2), dm) == objective_edge_expression(rm_dm, Val(Load), Edge(1, 2))
+        rm_dm = basic_routing_model_unitary(m_dm, rd_dm, FlowFormulation())
+        @test objective_edge_expression(rm_dm, Load(), Edge(1, 2), dm) == objective_edge_expression(rm_dm, Load(), Edge(1, 2))
 
         # Load.
-        @test_throws ErrorException objective_edge_expression(rm, Val(Load), Edge(1, 2))
-        @test objective_edge_expression(rm, Val(Load), Edge(1, 2), dm) == total_flow_in_edge(rm, Edge(1, 2), dm) / 2.0
-        @test objective_edge_expression(rm, Val(Load), Edge(1, 2), dm) == 2 * rm.routing[d, Edge(1, 2)]
+        @test_throws ErrorException objective_edge_expression(rm, Load(), Edge(1, 2))
+        @test objective_edge_expression(rm, Load(), Edge(1, 2), dm) == total_flow_in_edge(rm, Edge(1, 2), dm) / 2.0
+        @test objective_edge_expression(rm, Load(), Edge(1, 2), dm) == 2 * rm.routing[d, Edge(1, 2)]
 
         # Kleinrock. Needs a SOCP solver.
         cref = nothing
-        cref = @constraint(rm.model, objective_edge_expression(rm, Val(Load), Edge(1, 2), dm) == 0.75)
-        obj = objective_edge_expression(rm, Val(KleinrockLoad), Edge(1, 2), dm)
+        cref = @constraint(rm.model, objective_edge_expression(rm, Load(), Edge(1, 2), dm) == 0.75)
+        obj = objective_edge_expression(rm, KleinrockLoad(), Edge(1, 2), dm)
         @objective(rm.model, Min, obj)
         optimize!(rm.model)
         @test termination_status(rm.model) == MOI.OPTIMAL
@@ -263,8 +265,8 @@
             delete(rm.model, cref)
             cref = nothing
         end
-        cref = @constraint(rm.model, objective_edge_expression(rm, Val(Load), Edge(1, 2), dm) == 0.3)
-        obj = objective_edge_expression(rm, Val(FortzThorupLoad), Edge(1, 2), dm)
+        cref = @constraint(rm.model, objective_edge_expression(rm, Load(), Edge(1, 2), dm) == 0.3)
+        obj = objective_edge_expression(rm, FortzThorupLoad(), Edge(1, 2), dm)
         @objective(rm.model, Min, obj)
         optimize!(rm.model)
         @test termination_status(rm.model) == MOI.OPTIMAL
@@ -274,8 +276,8 @@
             delete(rm.model, cref)
             cref = nothing
         end
-        cref = @constraint(rm.model, objective_edge_expression(rm, Val(Load), Edge(1, 2), dm) == 0.6)
-        obj = objective_edge_expression(rm, Val(FortzThorupLoad), Edge(1, 2), dm)
+        cref = @constraint(rm.model, objective_edge_expression(rm, Load(), Edge(1, 2), dm) == 0.6)
+        obj = objective_edge_expression(rm, FortzThorupLoad(), Edge(1, 2), dm)
         @objective(rm.model, Min, obj)
         optimize!(rm.model)
         @test termination_status(rm.model) == MOI.OPTIMAL
@@ -285,8 +287,8 @@
             delete(rm.model, cref)
             cref = nothing
         end
-        cref = @constraint(rm.model, objective_edge_expression(rm, Val(Load), Edge(1, 2), dm) == 0.8)
-        obj = objective_edge_expression(rm, Val(FortzThorupLoad), Edge(1, 2), dm)
+        cref = @constraint(rm.model, objective_edge_expression(rm, Load(), Edge(1, 2), dm) == 0.8)
+        obj = objective_edge_expression(rm, FortzThorupLoad(), Edge(1, 2), dm)
         @objective(rm.model, Min, obj)
         optimize!(rm.model)
         @test termination_status(rm.model) == MOI.OPTIMAL
@@ -296,8 +298,8 @@
             delete(rm.model, cref)
             cref = nothing
         end
-        cref = @constraint(rm.model, objective_edge_expression(rm, Val(Load), Edge(1, 2), dm) == 0.95)
-        obj = objective_edge_expression(rm, Val(FortzThorupLoad), Edge(1, 2), dm)
+        cref = @constraint(rm.model, objective_edge_expression(rm, Load(), Edge(1, 2), dm) == 0.95)
+        obj = objective_edge_expression(rm, FortzThorupLoad(), Edge(1, 2), dm)
         @objective(rm.model, Min, obj)
         optimize!(rm.model)
         @test termination_status(rm.model) == MOI.OPTIMAL
@@ -309,8 +311,8 @@
         #     delete(rm.model, cref)
         #     cref = nothing
         # end
-        # cref = @constraint(rm.model, objective_edge_expression(rm, Val(Load), Edge(1, 2), dm) == 1.05)
-        # obj = objective_edge_expression(rm, Val(FortzThorupLoad), Edge(1, 2), dm)
+        # cref = @constraint(rm.model, objective_edge_expression(rm, Load(), Edge(1, 2), dm) == 1.05)
+        # obj = objective_edge_expression(rm, FortzThorupLoad(), Edge(1, 2), dm)
         # @objective(rm.model, Min, obj)
         # optimize!(rm.model)
         # @test termination_status(rm.model) == MOI.OPTIMAL
@@ -320,8 +322,8 @@
         #     delete(rm.model, cref)
         #     cref = nothing
         # end
-        # cref = @constraint(rm.model, objective_edge_expression(rm, Val(Load), Edge(1, 2), dm) == 1.2)
-        # obj = objective_edge_expression(rm, Val(FortzThorupLoad), Edge(1, 2), dm)
+        # cref = @constraint(rm.model, objective_edge_expression(rm, Load(), Edge(1, 2), dm) == 1.2)
+        # obj = objective_edge_expression(rm, FortzThorupLoad(), Edge(1, 2), dm)
         # @objective(rm.model, Min, obj)
         # optimize!(rm.model)
         # @test termination_status(rm.model) == MOI.OPTIMAL

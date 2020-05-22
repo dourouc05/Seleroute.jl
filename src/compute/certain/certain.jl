@@ -1,6 +1,6 @@
 # TODO: column generation for all these functions.
 
-function compute_routing(rd::RoutingData, ::Val{Load}, ::Val{MinimumMaximum}, ::Val, ::Val{false}, ::Val{Automatic}, ::Val{NoUncertaintyHandling}, ::Val{NoUncertainty})
+function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
     start = time_ns()
 
     # Create the problem.
@@ -24,7 +24,7 @@ function compute_routing(rd::RoutingData, ::Val{Load}, ::Val{MinimumMaximum}, ::
                                   objective_value(m), rd.traffic_matrix, Routing(rd, value.(rm.routing)), rm)
 end
 
-function compute_routing(rd::RoutingData, obj_edge::Val, ::Val{MinimumTotal}, ::Val, ::Val{false}, ::Val{Automatic}, ::Val{NoUncertaintyHandling}, ::Val{NoUncertainty})
+function compute_routing(rd::RoutingData, obj_edge::EdgeWiseObjectiveFunction, ::MinimumTotal, ::FormulationType, ::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
     start = time_ns()
 
     # Create the problem.
@@ -46,7 +46,7 @@ function compute_routing(rd::RoutingData, obj_edge::Val, ::Val{MinimumTotal}, ::
                                   objective_value(m), rd.traffic_matrix, Routing(rd, value.(rm.routing)), rm)
 end
 
-function compute_routing(rd::RoutingData, obj_edge::Val, ::Val{MinimumMaximum}, ::Val, ::Val{false}, ::Val{Automatic}, ::Val{NoUncertaintyHandling}, ::Val{NoUncertainty})
+function compute_routing(rd::RoutingData, obj_edge::EdgeWiseObjectiveFunction, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
     start = time_ns()
 
     # Create the problem.

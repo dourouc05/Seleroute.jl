@@ -32,7 +32,7 @@ function _basic_routing_model_unitary_flow_conservation_flow_formulation(m::Mode
     return cstrs_src_in, cstrs_src_out, cstrs_dst_in, cstrs_dst_out, cstrs_bal
 end
 
-function basic_routing_model_unitary(m::Model, rd::RoutingData, ::Val{FlowFormulation})
+function basic_routing_model_unitary(m::Model, rd::RoutingData, ::FlowFormulation)
     @variable(m, 0 <= routing[d in demands(rd), e in edges(rd)] <= 1)
 
     cstrs_src_in, cstrs_src_out, cstrs_dst_in, cstrs_dst_out, cstrs_bal =
@@ -44,7 +44,7 @@ function basic_routing_model_unitary(m::Model, rd::RoutingData, ::Val{FlowFormul
         constraints_balance=cstrs_bal)
 end
 
-function basic_routing_model_unscaled(m::Model, rd::RoutingData, dm::Dict{Edge, Float64}, ::Val{FlowFormulation})
+function basic_routing_model_unscaled(m::Model, rd::RoutingData, dm::Dict{Edge, Float64}, ::FlowFormulation)
     # dm is either a traffic matrix or variables! The only guarantee is that it is indexable by demands.
 
     @variable(m, routing[d in demands(rd), e in edges(rd)] >= 0)
@@ -58,7 +58,7 @@ function basic_routing_model_unscaled(m::Model, rd::RoutingData, dm::Dict{Edge, 
         constraints_balance=cstrs_bal)
 end
 
-function total_flow_in_edge(rm::RoutingModel, e::Edge, dm::Dict{Edge, Float64}, ::Val{FlowFormulation}, ::Val{UnitaryFlows})
+function total_flow_in_edge(rm::RoutingModel, e::Edge, dm::Dict{Edge, Float64}, ::FlowFormulation, ::Val{UnitaryFlows})
     flow = AffExpr(0.0)
     for d in keys(dm)
         if ! iszero(dm[d])
@@ -68,6 +68,6 @@ function total_flow_in_edge(rm::RoutingModel, e::Edge, dm::Dict{Edge, Float64}, 
     return flow
 end
 
-function total_flow_in_edge(rm::RoutingModel, e::Edge, ::Val{FlowFormulation}, ::Val{UnscaledFlows})
+function total_flow_in_edge(rm::RoutingModel, e::Edge, ::FlowFormulation, ::Val{UnscaledFlows})
     return sum(rm.routing[d, e] for d in demands(rm.data))
 end

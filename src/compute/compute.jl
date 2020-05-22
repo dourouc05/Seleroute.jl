@@ -5,10 +5,11 @@ It returns one object, a `RoutingSolution`, containing all intermediary results.
 function compute_routing(rd::RoutingData)
     # Only perform dispatch on the type of model.
     mt = rd.model_type
-    return compute_routing(rd, Val(mt.edge_obj), Val(mt.agg_obj), Val(mt.type), Val(mt.cg), Val(mt.algo), Val(mt.unc), Val(mt.uncparams))
+    return compute_routing(rd, mt.edge_obj, mt.agg_obj, mt.type, Val(mt.cg), mt.algo, mt.unc, mt.uncparams)
 end
 
-function compute_routing(rd::RoutingData, edge_obj::Val, agg_obj::Val, type::Val, cg::Val, algo::Val, unc::Val, uncparams::Val)
+function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, agg_obj::AggregationObjectiveFunction,
+                         type::FormulationType, cg::Val, algo::AlgorithmChoice, unc::UncertaintyHandling, uncparams::UncertainParameters)
     # When dispatch fails, use this fallback.
     msg = "Model type not yet implemented: ModelType($edge_obj, $agg_obj, $type, $cg, $algo, $unc, $uncparams).\n"
     msg *= "These models are available:\n"

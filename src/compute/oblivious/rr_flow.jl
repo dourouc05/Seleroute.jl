@@ -1,4 +1,4 @@
-function master_formulation(rd::RoutingData, solver, type::Val{FlowFormulation})
+function master_formulation(rd::RoutingData, type::FlowFormulation)
     m = Model(rd.solver)
     set_silent(m)
 

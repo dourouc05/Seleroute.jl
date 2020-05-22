@@ -76,13 +76,13 @@ end
     end
 
     @testset "Parameter compatibility" begin
-        for edge_obj in instances(EdgeWiseObjectiveFunction)
-            for agg_obj in instances(AggregationObjectiveFunction)
-                for type in instances(FormulationType)
+        for edge_obj in subtypes(EdgeWiseObjectiveFunction)
+            for agg_obj in subtypes(AggregationObjectiveFunction)
+                for type in subtypes(FormulationType)
                     for cg in [true, false]
-                        for algo in instances(AlgorithmChoice)
-                            for unc in instances(UncertaintyHandling)
-                                for uncparams in instances(UncertainParameters)
+                        for algo in subtypes(AlgorithmChoice)
+                            for unc in subtypes(UncertaintyHandling)
+                                for uncparams in subtypes(UncertainParameters)
                                     @testset "ModelType($edge_obj, $agg_obj, $type, $cg, $algo, $unc, $uncparams)" begin
                                         # Failures.
                                         if uncparams == UncertainCapacity && edge_obj in [Load, KleinrockLoad, FortzThorupLoad]
@@ -103,18 +103,18 @@ end
                                             # The ModelType object must build properly.
                                             mt = ModelType(edge_obj, agg_obj, type, cg, algo, unc, uncparams)
 
-                                            @test mt.edge_obj == edge_obj
-                                            @test mt.agg_obj == agg_obj
-                                            @test mt.type == type
+                                            @test mt.edge_obj == edge_obj()
+                                            @test mt.agg_obj == agg_obj()
+                                            @test mt.type == type()
                                             @test mt.cg == cg
-                                            @test mt.unc == unc
-                                            @test mt.uncparams == uncparams
+                                            @test mt.unc == unc()
+                                            @test mt.uncparams == uncparams()
 
                                             # Automatic parameter detection.
                                             if (unc == ObliviousUncertainty || unc == RobustUncertainty) && algo == Automatic
-                                                @test mt.algo != algo
+                                                @test mt.algo != algo()
                                             else
-                                                @test mt.algo == algo
+                                                @test mt.algo == algo()
                                             end
 
                                             # Test that RoutingData builds properly.
@@ -135,7 +135,7 @@ end
                                             @test n_nodes(rd) == 4
                                             @test n_edges(rd) == 4
                                             @test n_demands(rd) == 1
-                                            @test n_paths(rd) == ((type == PathFormulation) ? 2 : 0)
+                                            @test n_paths(rd) == (type == PathFormulation ? 2 : 0)
 
                                             if type == PathFormulation
                                                 @test [Edge(1, 2), Edge(2, 4)] in rd.paths_edges
@@ -144,7 +144,7 @@ end
                                                 @test rd.path_id_to_demand[1] == Edge(1, 4)
                                                 @test rd.path_id_to_demand[2] == Edge(1, 4)
                                             else
-                                                @assert type == FlowFormulation
+                                                @test type == FlowFormulation
                                                 @test length(rd.paths_edges) == 0
                                                 @test length(rd.demand_to_path_ids) == 0
                                                 @test length(rd.path_id_to_demand) == 0
@@ -154,7 +154,7 @@ end
                                             if type == FlowFormulation
                                                 @test_nowarn RoutingData(g, k, ECOS.Optimizer, mt, npaths=1)
                                             elseif cg == false
-                                                @assert type == PathFormulation
+                                                @test type == PathFormulation
                                                 wrnmsg = "The limit of paths to generate (1) has been reached; the result will not be " *
                                                       "guaranteed to be optimum. Switch to a column-generation formulation for exact results."
                                                 @test_logs (:warn, wrnmsg) RoutingData(g, k, ECOS.Optimizer, mt, npaths=1)

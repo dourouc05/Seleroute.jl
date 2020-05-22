@@ -1,4 +1,4 @@
-master_formulation(rd::RoutingData, solver, ::Val) =
+master_formulation(rd::RoutingData, ::Val) =
     error("Not implemented: $(rd.model_type)")
 
 # TODO: like _iter, add solve_master_problem that in turn calls this.
@@ -14,10 +14,10 @@ function get_traffic_matrices(rm::RoutingModel)
     return collect(l_tm)
 end
 
-function compute_routing(rd::RoutingData, ::Val{Load}, ::Val{MinimumMaximum}, formulation::Val, ::Val{false}, ::Val{ObliviousUncertainty}, ::Val{DualReformulation}, ::Val{UncertainDemand})
+function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, formulation::FormulationType, ::Val{false}, ::DualReformulation, ::ObliviousUncertainty, ::UncertainDemand)
     start = time_ns()
 
-    rm = master_formulation(rd, solver, formulation)
+    rm = master_formulation(rd, formulation)
     if export_lp
         write_LP("$(rd.output_folder)/master.lp", rm.model)
     end

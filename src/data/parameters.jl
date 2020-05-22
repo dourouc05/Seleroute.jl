@@ -228,7 +228,7 @@ function RoutingData(g::AbstractMetaGraph, # Not MetaDiGraph, to show a more int
     end
 
     # If this is a path-based formulation, it may require some path generation.
-    if (model_type.type == PathFormulation || sub_model_type.type == PathFormulation) && npaths > 0
+    if (model_type.type == PathFormulation() || sub_model_type.type == PathFormulation()) && npaths > 0
         # Precompute some shortest paths and directly assign them numbers.
         # A path is a sequence of integers, each being the index of a node.
         paths = Vector{Int}[]

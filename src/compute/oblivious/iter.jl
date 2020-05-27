@@ -20,7 +20,7 @@ end
 
 # Interface for a formulation and default implementations (only providing error messages).
 
-oblivious_subproblem_model(m::Model, rd::RoutingData, e_bar::Edge, current_routing::Routing, ::Val...) =
+oblivious_subproblem_model(m::Model, rd::RoutingData, e_bar::Edge, current_routing::Routing, ::Any...) =
     error("Not implemented: $(rd.sub_model_type)")
 
 add_traffic_matrix(rm::RoutingModel, matrix::ConsideredTrafficMatrix) =
@@ -42,7 +42,7 @@ solve_master_problem(rd::RoutingData, rm::RoutingModel, mt::ModelType) =
 """
 Return values: `result`, `n_new_paths`, `candidate_matrix`.
 """
-solve_subproblem(rd::RoutingData, ::RoutingModel, rm::RoutingModel, e_bar::Edge, ::Val...) =
+solve_subproblem(rd::RoutingData, ::RoutingModel, rm::RoutingModel, e_bar::Edge, ::Any...) =
     error("Model type not yet implemented: $(rd.model_type)")
 
 # Default implementation of the master problem and subproblem. It works without trouble if there is no column generation.
@@ -145,19 +145,9 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
         result, current_routing, n_new_paths = solve_master_problem(rd, rm, rd.model_type)
         total_new_paths += n_new_paths
 
-        if rd.export_lps
-            write_LP("$(rd.output_folder)/lp_master_$(it).lp", m)
-        end
-
-        # If the master problem could not be solved, save it and quit.
-        if result != MOI.OPTIMAL
-            if rd.export_lps_on_error
-                write_LP("$(rd.output_folder)/error_master_$(it).lp", m)
-            end
-
-            rd.logmessage("Current master problem could not be solved! Error code: $(result)")
-            error("Current master problem could not be solved! Error code: $(result)")
-        end
+        # Export if needed.
+        _export_lp_if_allowed(rd, m, "lp_master_$(it)")
+        _export_lp_if_failed(rd, result, m, "error_master_$(it)", "Current master problem could not be solved!")
 
         # Otherwise, go on and save the original routing (the one that does not
         # consider any oblivious demand).
@@ -188,19 +178,9 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
             n_new_paths_this_iter += n_sub_new_paths
             total_new_paths += n_sub_new_paths
 
-            if rd.export_lps
-                write_LP("$(rd.output_folder)/lp_subproblem_$(it)_edge_$(e_bar.src)_to_$(e_bar.dst).lp", s_m)
-            end
-
-            # If it is not feasible, exit right now.
-            if s_result != MOI.OPTIMAL
-                if rd.export_lps_on_error
-                    write_LP("$(rd.output_folder)/error_subproblem_$(it)_edge_$(e_bar.src)_to_$(e_bar.dst).lp", s_m)
-                end
-
-                rd.logmessage("Subproblem could not be solved! Error code: $(s_result)")
-                error("Subproblem could not be solved! Error code: $(s_result)")
-            end
+            # Export if needed.
+            _export_lp_if_allowed(rd, s_m, "lp_subproblem_$(it)_edge_$(e_bar.src)_to_$(e_bar.dst)")
+            _export_lp_if_failed(rd, s_result, s_m, "error_subproblem_$(it)_edge_$(e_bar.src)_to_$(e_bar.dst)", "Subproblem could not be solved!")
 
             # Is the traffic matrix "interesting"? Two meanings, depending on the parameters:
             # - in any case: would this traffic matrix help reach the best oblivious routing? i.e.: is the

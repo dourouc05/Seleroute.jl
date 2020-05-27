@@ -1,4 +1,4 @@
-master_formulation(rd::RoutingData, ::Val) =
+master_formulation(rd::RoutingData, ::Any) =
     error("Not implemented: $(rd.model_type)")
 
 # TODO: like _iter, add solve_master_problem that in turn calls this.
@@ -16,15 +16,16 @@ end
 
 function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, formulation::FormulationType, ::Val{false}, ::DualReformulation, ::ObliviousUncertainty, ::UncertainDemand)
     start = time_ns()
-
     rm = master_formulation(rd, formulation)
-    if rd.export_lps
-        write_LP("$(rd.output_folder)/master.lp", rm.model)
-    end
 
     # Solve the problem and generate the output data structure.
     optimize!(rm.model)
     rd.logmessage(objective_value(rm.model))
+    status = termination_status(rm.model)
+
+    # Export if needed.
+    _export_lp_if_allowed(rd, rm.model, "lp_master")
+    _export_lp_if_failed(rd, status, rm.model, "error_master", "Subproblem could not be solved!")
 
     # Retrieve the traffic matrices, if asked.
     tms = if rd.model_robust_reformulation_traffic_matrices

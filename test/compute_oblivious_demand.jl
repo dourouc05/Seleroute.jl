@@ -25,14 +25,15 @@
     d2 = Edge(2, 6)
 
     @testset "$type$(cg ? " with column generation" : "")" for (type, cg) in [(FlowFormulation, false), (PathFormulation, false), (PathFormulation, true)]
-        @testset "$algo" for algo in [CuttingPlane, DualReformulation]
+        @testset "$algo (with OPT_D computation: $compute_opt_d)" for (algo, compute_opt_d) in [(CuttingPlane, false), (CuttingPlane, true), (DualReformulation, false)]
             if cg && algo == DualReformulation
                 # Not yet implemented.
                 continue
             end
 
+            n_paths = (cg ? 1 : 5) # Only two paths for each demand, force column generation to generate a new one.
             mt = ModelType(Load, MinimumMaximum, type, cg, algo, ObliviousUncertainty, UncertainDemand)
-            rd = RoutingData(g, k, opt, mt, npaths=(cg ? 1 : 5)) # Only two paths for each demand, force column generation to generate a new one.
+            rd = RoutingData(g, k, opt, mt, npaths=n_paths, model_exact_opt_d=compute_opt_d)
             r = compute_routing(rd)
 
             @test r !== nothing

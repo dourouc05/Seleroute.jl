@@ -22,9 +22,9 @@ function compute_max_load(rd::RoutingData, demands::Dict{Edge{Int}, Float64})
 end
 
 function compute_max_load(m::Model, rd::RoutingData, demands::Dict{Edge{Int}, Float64})
-    rm = basic_routing_model_unitary(m, rd, Val(rd.model_type.type))
+    rm = basic_routing_model_unitary(m, rd, rd.model_type.type)
     mu_capacity_constraints(rm, demands)
-    @objective(m, Min, mu)
+    @objective(m, Min, rm.mu)
     optimize!(m)
     return objective_value(m)
 end

@@ -20,14 +20,9 @@ function compute_routing(rd::RoutingData, obj_edge::EdgeWiseObjectiveFunction, :
         optimize!(m)
         status = termination_status(rm.model)
 
-        if status != MOI.OPTIMAL
-            if rd.export_lps_on_error
-                write_LP("$(rd.output_folder)/error_$(e).lp", m)
-            end
-
-            rd.logmessage("Current problem could not be solved! Error code: $(status)")
-            error("Current problem could not be solved! Error code: $(status)")
-        end
+        # Export if needed.
+        _export_lp_if_allowed(rd, m, "lp_$(e)")
+        _export_lp_if_failed(rd, status, m, "error_$(e)", "Current problem could not be solved!")
 
         # Add this value as a requirement for the next iterations (with some numerical leeway).
         # This is not needed for the last iteration.

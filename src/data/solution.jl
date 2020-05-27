@@ -204,7 +204,7 @@ function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64
     return path_flows, edge_flows, paths
 end
 
-function path_routing_to_flow(data::RoutingData, routing::AbstractMatrix{Float64})
+function path_routing_to_flow(data::RoutingData, routing::AbstractMatrix{Float64}; ε::Float64=1.e-5)
     if data.model_type.type != PathFormulation()
         error("This function can only be used for path-based formulations; it makes no sense for formulation type $(data.model_type)")
     end
@@ -217,10 +217,10 @@ function path_routing_to_flow(data::RoutingData, routing::AbstractMatrix{Float64
         path = k[2]
 
         if ! (demand in keys(path_flows))
-            path_flows[demand] = Dict{Edge{Int}, Float64}()
+            path_flows[demand] = Dict{Int, Float64}()
         end
 
-        if ! iszero(routing[k])
+        if abs(routing[k]) > ε
             path_flows[demand][path] = routing[k]
         end
     end
@@ -237,7 +237,7 @@ function path_routing_to_flow(data::RoutingData, routing::AbstractMatrix{Float64
                 end
             end
 
-            if ! iszero(total_weight)
+            if abs(total_weight) > ε
                 edge_flows[demand][edge] = total_weight
             end
         end

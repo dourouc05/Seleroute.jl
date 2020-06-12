@@ -102,5 +102,9 @@ function __testset_nouncertainty_mmf(edge_obj, type, opt, g, paths, k, d, dm)
         @test length(r.routings[1].edge_flows) == ne(k) # Number of demands
         @test length(r.routings[1].edge_flows[d]) in [1, 3, 5] # Number of edges
         @test sum(x for x in values(r.routings[1].path_flows[d])) ≈ 1.0
+
+        # Check that all paths are used, i.e. each of them sees at least 20% of the traffic.
+        @test all(collect(values(r.routings[1].path_flows[d])) .>= 0.2)
+        @test collect(values(r.routings[1].path_flows[d])) ≈ [0.2857, 0.2857, 0.4285] atol=1.0e-4
     end
 end

@@ -34,7 +34,12 @@ abstract type AggregationObjectiveFunction end
 
 struct MinimumTotal <: AggregationObjectiveFunction end
 struct MinimumMaximum <: AggregationObjectiveFunction end
-struct MinMaxFair <: AggregationObjectiveFunction end
+struct MinMaxFair <: AggregationObjectiveFunction
+    ε::Float64 # Numerical accuracy when adding MMF constraints.
+
+    MinMaxFair(ε::Float64) = new(ε)
+    MinMaxFair() = new(1.0e-5)
+end
 
 """
 The type of formulation that is used to solve the routing problem. This package natively supports two main families of formulations:

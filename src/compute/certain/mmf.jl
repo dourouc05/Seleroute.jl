@@ -1,22 +1,28 @@
 # TODO: column generation for all these functions.
 
-function compute_routing(rd::RoutingData, obj_edge::EdgeWiseObjectiveFunction, ::MinMaxFair, ::FormulationType, ::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
+function compute_routing(rd::RoutingData, obj_edge::EdgeWiseObjectiveFunction, agg_obj::MinMaxFair, ::FormulationType, ::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
+    # Based on https://onlinelibrary.wiley.com/doi/abs/10.1002/ett.1047.
     start = time_ns()
 
     # Create the problem.
     m = Model(rd.solver)
     set_silent(m)
     rm = basic_routing_model_unitary(m, rd)
-    mu_capacity_constraints(rm, rd.traffic_matrix)
+    capacity_constraints(rm, rd.traffic_matrix)
 
-    # Iteratively solve it by adding constraints for each edge.
+    # Find the last edge.
     last_edge = nothing # last() does not work here (iterator, not a collection).
     for e in edges(rd)
         last_edge = e
     end
+
+    # Iteratively solve it by adding constraints for each edge.
+    @variable(m, τ >= 0)
+    @objective(m, Min, τ)
+    @constraint(m, mmf[e in edges(rd)], objective_edge_expression(rm, obj_edge, e) <= τ)
+
     for e in edges(rd)
-        # Optimise this objective function.
-        @objective(m, Min, objective_edge_expression(rm, obj_edge, e))
+        # Optimise for this iteration.
         optimize!(m)
         status = termination_status(rm.model)
 
@@ -27,11 +33,8 @@ function compute_routing(rd::RoutingData, obj_edge::EdgeWiseObjectiveFunction, :
         # Add this value as a requirement for the next iterations (with some numerical leeway).
         # This is not needed for the last iteration.
         if e != last_edge
-            ε = 1.e-2 # TODO: Parameter! But that means changing enumerations to types... A good thing, but a lot of refactoring!
-            o = objective_value(m) # Must be called before the expression is built!
-            # Indeed, an objective expression may require adding variables and constraints.
-            expr = objective_edge_expression(rm, obj_edge, e)
-            @constraint(m, expr <= (1 + ε) * o)
+            set_normalized_rhs(mmf[e], objective_value(m) * (1 + agg_obj.ε))
+            set_normalized_coefficient(mmf[e], τ, 0)
         end
     end
 

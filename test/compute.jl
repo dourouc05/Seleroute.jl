@@ -25,11 +25,7 @@
             @testset "No uncertainty" begin
                 __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
                 __testset_nouncertainty_mintot(edge_obj, type, opt, g, paths, k, d, dm)
-
-                # Only works for Load, not (yet?) for others.
-                if edge_obj == Load
-                    __testset_nouncertainty_mmf(edge_obj, type, opt, g, paths, k, d, dm)
-                end
+                __testset_nouncertainty_mmf(edge_obj, type, opt, g, paths, k, d, dm)
             end
         end
     end

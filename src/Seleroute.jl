@@ -42,7 +42,7 @@ include("data/parameters.jl")
 include("data/model.jl")
 include("data/solution.jl")
 include("data/topology.jl")
-include("export.jl") 
+include("export.jl")
 include("basemodels/helpers.jl")
 include("basemodels/knowncapacities.jl")
 include("basemodels/knowncapacities_flow.jl")
@@ -63,7 +63,7 @@ include("experiments/random.jl")
 
 export EdgeWiseObjectiveFunction, AggregationObjectiveFunction, FormulationType,
        AlgorithmChoice, UncertaintyHandling, UncertainParameters, ModelType,
-       Load, KleinrockLoad, FortzThorupLoad, MinimumTotal, MinimumMaximum, MinMaxFair,
+       Load, KleinrockLoad, FortzThorupLoad, AlphaFairness, MinimumTotal, MinimumMaximum, MinMaxFair,
        FlowFormulation, PathFormulation, Automatic, CuttingPlane, DualReformulation,
        NoUncertaintyHandling, StochasticUncertainty, RobustUncertainty,
        ObliviousUncertainty, NoUncertainty, UncertainDemand, UncertainCapacity,

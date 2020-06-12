@@ -7,16 +7,23 @@ function _basic_routing_model_unitary_flow_conservation_flow_formulation(m::Mode
     cstrs_bal = Dict{Edge{Int}, Dict{Int, Any}}()
 
     for d in demands(rd)
-        # TODO: only generate these constraints when there are edges considered (mostly for == 0: don't always generate them)
+        @assert length(outedges(rd.g, d.src)) > 0
         cstrs_src_out[d] = @constraint(m, sum(routing[d, e] for e in outedges(rd.g, d.src)) == f(d))
-        cstrs_src_in[d] = @constraint(m, sum(routing[d, e] for e in inedges(rd.g, d.src)) == 0)
-        cstrs_dst_in[d] = @constraint(m, sum(routing[d, e] for e in inedges(rd.g, d.dst)) == f(d))
-        cstrs_dst_out[d] = @constraint(m, sum(routing[d, e] for e in outedges(rd.g, d.dst)) == 0)
-
         set_name(cstrs_src_out[d], "c_conservation_source_out[$(d)]")
-        set_name(cstrs_src_in[d], "c_conservation_source_in[$(d)]")
+
+        if length(inedges(rd.g, d.src)) > 0
+            cstrs_src_in[d] = @constraint(m, sum(routing[d, e] for e in inedges(rd.g, d.src)) == 0)
+            set_name(cstrs_src_in[d], "c_conservation_source_in[$(d)]")
+        end
+
+        @assert length(inedges(rd.g, d.dst)) > 0
+        cstrs_dst_in[d] = @constraint(m, sum(routing[d, e] for e in inedges(rd.g, d.dst)) == f(d))
         set_name(cstrs_dst_in[d], "c_conservation_target_in[$(d)]")
-        set_name(cstrs_dst_out[d], "c_conservation_target_out[$(d)]")
+
+        if length(outedges(rd.g, d.dst)) > 0
+            cstrs_dst_out[d] = @constraint(m, sum(routing[d, e] for e in outedges(rd.g, d.dst)) == 0)
+            set_name(cstrs_dst_out[d], "c_conservation_target_out[$(d)]")
+        end
 
         cstrs_bal[d] = Dict{Int, Any}()
         for v in vertices(rd.g)

@@ -15,6 +15,10 @@ struct Load <: EdgeWiseObjectiveFunction end
 struct KleinrockLoad <: EdgeWiseObjectiveFunction end
 struct FortzThorupLoad <: EdgeWiseObjectiveFunction end
 
+struct AlphaFairness <: EdgeWiseObjectiveFunction
+    α::Float64
+end
+
 """
 The aggregation-function objective to optimise, giving one objective function aggregating
 all the components for each edge (indicated by `EdgeWiseObjectiveFunction`). These values are natively supported:

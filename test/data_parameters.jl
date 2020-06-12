@@ -84,8 +84,12 @@ end
                             for unc in subtypes(UncertaintyHandling)
                                 for uncparams in subtypes(UncertainParameters)
                                     @testset "ModelType($edge_obj, $agg_obj, $type, $cg, $algo, $unc, $uncparams)" begin
+                                        # Special cases.
+                                        if edge_obj == AlphaFairness
+                                            # TODO: provide a value for α and run the same tests as below.
+                                            
                                         # Failures.
-                                        if uncparams == UncertainCapacity && edge_obj in [Load, KleinrockLoad, FortzThorupLoad]
+                                        elseif uncparams == UncertainCapacity && edge_obj in [Load, KleinrockLoad, FortzThorupLoad]
                                             @test_throws ErrorException ModelType(edge_obj, agg_obj, type, cg, algo, unc, uncparams)
                                         elseif type == FlowFormulation && cg
                                             @test_throws ErrorException ModelType(edge_obj, agg_obj, type, cg, algo, unc, uncparams)

@@ -1,5 +1,7 @@
 @testset "Compute" begin
-    opt = ECOS.Optimizer # SOCP required for some objective functions.
+    # Required cones: SOCP (Kleinrock, α-fairness), EXP (α-fairness), POW (α-fairness).
+    # ECOS only provides SOCP and EXP, use SCS for the rest (worse accuracy that ECOS).
+    opt = ECOS.Optimizer
 
     g = MetaDiGraph()
     add_vertex!(g, :name, "A")
@@ -20,8 +22,8 @@
 
     # Include solver-specific tests.
     include("compute_certain.jl")
-    @testset "Edge-wise objective: $edge_obj" for edge_obj in [Load, KleinrockLoad, FortzThorupLoad]
-        @testset "Formulation type: $type" for type in [FlowFormulation, PathFormulation]
+    @testset "Formulation type: $type" for type in [FlowFormulation(), PathFormulation()]
+        @testset "Edge-wise objective: $edge_obj" for edge_obj in [Load(), KleinrockLoad(), FortzThorupLoad(), AlphaFairness(0.5), AlphaFairness(1.0)]
             @testset "No uncertainty" begin
                 __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
                 __testset_nouncertainty_mintot(edge_obj, type, opt, g, paths, k, d, dm)

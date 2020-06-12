@@ -51,3 +51,56 @@ function objective_edge_expression(rm::RoutingModel, ::FortzThorupLoad, e::Edge,
 
     return fortzthorup
 end
+
+function objective_edge_expression(rm::RoutingModel, edge_obj::AlphaFairness, e::Edge, dm::Dict{Edge{Int}, Float64})
+    # Model the function load^α / (1 - α). Depending on the value of α,
+    # this constraint has very different models. They are all reformulation
+    # of the inequality load^α / (1 - α) ≥ af.
+    α = edge_obj.α
+    @assert edge_obj.α >= 0
+
+    # Α-fairness can be quite low, but bound it below to avoid unboundedness in the tests.
+    alphafairness = @variable(rm.model, base_name="alphafairness[$e]", lower_bound=-2.0e4)
+    load_e = objective_edge_expression(rm, Load(), e, dm)
+
+    c = if α == 0.5
+        # This is a very specific case where the power cone is not really
+        # needed, two second-order cones are sufficient. These cone are more
+        # widely tolerated.
+        #     af ≤ ½ √load
+        #   ⟺ ϕ² ≤ l          ∧    af ≤ ½ √(ϕ ϕ)
+        #   ⟺ ϕ² ≤ l × 1/2    ∧    af² ≤ (ϕ/√2) (ϕ/√2)
+        ϕ = @variable(rm.model, base_name="alphafairness_phi[$e]", lower_bound=0)
+
+        # ϕ² ≤ l
+        c = @constraint(rm.model, [ϕ, ϕ, load_e] in RotatedSecondOrderCone())
+        set_name(c, "alphafairness_phi[$(e)]")
+
+        # af ≤ √(ϕ ϕ)
+        @constraint(rm.model, [ϕ/2, ϕ/2, alphafairness] in RotatedSecondOrderCone())
+    elseif α == 1.0
+        # The function becomes a logarithm:
+        #     af ≤ log(load)
+        #     1 × exp(af / 1) ≤ load
+        #     (af, 1, l) ∈ EXP
+        @constraint(rm.model, [alphafairness, 1, load_e] in MOI.ExponentialCone())
+    elseif α < 1.0
+        # Generic case: 0.0 < α < 1.0 (also works for α = ½).
+        #     af ≤ load^(1-α) / (1 - α),     with α < 1, i.e. 1 - α > 0
+        #   ⟺ af ≤ load^(1-α) × 1^α / (1 - α)
+        #   ⟺ (1 - α) × af ≤ load^(1-α) × 1^α
+        @constraint(rm.model, [(1 - α) * load_e, 1, alphafairness] in MOI.PowerCone(1.0 - α))
+    else
+        @assert α > 1.0
+        # Last case: α > 1.0.
+        #     af ≤ load^(1-α) / (1 - α),     with α > 1, i.e. 1-α < 0
+        #   ⟺ 1 ≤ load^(1-α) × t^-1 / (1 - α)
+        #   ⟺ 1 - α ≤ load^(1-α) × t^-1
+        #   ⟺ (1 - α)^(-α)  ≤ load^(1-α)/(-α) × t^-1/(-α)
+        #   ⟺ 1 / (1 - α)^α ≤ load^(α-1)/α × 1^(1/α)
+        @constraint(rm.model, [1.0 / (1 - α)^α, load_e, alphafairness] in MOI.PowerCone((α - 1.0) / α))
+    end
+
+    set_name(c, "alphafairness[$(e)]")
+    return alphafairness
+end

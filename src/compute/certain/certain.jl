@@ -57,8 +57,10 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, :
     # Constraints.
     capacity_constraints(rm, rd.traffic_matrix)
 
-    # Objective function.
-    @variable(m, obj >= 0)
+    # Objective function. Don't define a lower bound, in case the individual
+    # terms do not have such a lower bound (like α-fairness, even though it
+    # does not make much sense to minimise). 
+    @variable(m, obj)
     for e in edges(rd)
         @constraint(m, obj >= objective_edge_expression(rm, edge_obj, e))
     end

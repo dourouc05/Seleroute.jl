@@ -37,10 +37,7 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
             set_normalized_coefficient(mmf[e], τ, 0)
         end
     end
-
     # No need to start the solver one last time, the last solution is the right one.
-    # If there were one more solver call, it would have to be without any objective function,
-    # but with the constraint corresponding to the last solver call.
 
     # Done, at last!
     stop = time_ns()

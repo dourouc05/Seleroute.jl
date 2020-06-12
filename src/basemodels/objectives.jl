@@ -1,14 +1,14 @@
-function objective_edge_expression(::RoutingModel, obj_edge::EdgeWiseObjectiveFunction, ::Edge, ::Dict{Edge{Int}, Float64})
-    error("Edge-wise objective function not implemented: $obj_edge")
+function objective_edge_expression(::RoutingModel, edge_obj::EdgeWiseObjectiveFunction, ::Edge, ::Dict{Edge{Int}, Float64})
+    error("Edge-wise objective function not implemented: $edge_obj")
 end
 
-function objective_edge_expression(rm::RoutingModel, obj_edge::EdgeWiseObjectiveFunction, e::Edge)
+function objective_edge_expression(rm::RoutingModel, edge_obj::EdgeWiseObjectiveFunction, e::Edge)
     if length(rm.data.traffic_matrix) == 0
         error("Creating an edge-wise objective term with an empty default traffic matrix. " *
               "Set one in the corresponding RoutingData object or use the `dm` argument.")
     end
 
-    return objective_edge_expression(rm, obj_edge, e, rm.data.traffic_matrix)
+    return objective_edge_expression(rm, edge_obj, e, rm.data.traffic_matrix)
 end
 
 function objective_edge_expression(rm::RoutingModel, ::Load, e::Edge, dm::Dict{Edge{Int}, Float64})

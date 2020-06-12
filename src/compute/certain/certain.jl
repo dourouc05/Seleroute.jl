@@ -24,7 +24,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::Formulatio
                                   objective_value(m), rd.traffic_matrix, Routing(rd, value.(rm.routing)), rm)
 end
 
-function compute_routing(rd::RoutingData, obj_edge::EdgeWiseObjectiveFunction, ::MinimumTotal, ::FormulationType, ::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
+function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, ::MinimumTotal, ::FormulationType, ::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
     start = time_ns()
 
     # Create the problem.
@@ -36,7 +36,7 @@ function compute_routing(rd::RoutingData, obj_edge::EdgeWiseObjectiveFunction, :
     capacity_constraints(rm, rd.traffic_matrix)
 
     # Objective function.
-    @objective(m, Min, sum(objective_edge_expression(rm, obj_edge, e) for e in edges(rd)))
+    @objective(m, Min, sum(objective_edge_expression(rm, edge_obj, e) for e in edges(rd)))
 
     # Done!
     optimize!(m)
@@ -46,7 +46,7 @@ function compute_routing(rd::RoutingData, obj_edge::EdgeWiseObjectiveFunction, :
                                   objective_value(m), rd.traffic_matrix, Routing(rd, value.(rm.routing)), rm)
 end
 
-function compute_routing(rd::RoutingData, obj_edge::EdgeWiseObjectiveFunction, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
+function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
     start = time_ns()
 
     # Create the problem.
@@ -60,7 +60,7 @@ function compute_routing(rd::RoutingData, obj_edge::EdgeWiseObjectiveFunction, :
     # Objective function.
     @variable(m, obj >= 0)
     for e in edges(rd)
-        @constraint(m, obj >= objective_edge_expression(rm, obj_edge, e))
+        @constraint(m, obj >= objective_edge_expression(rm, edge_obj, e))
     end
 
     @objective(m, Min, obj)

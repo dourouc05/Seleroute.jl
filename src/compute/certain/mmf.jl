@@ -1,6 +1,6 @@
 # TODO: column generation for all these functions.
 
-function compute_routing(rd::RoutingData, obj_edge::EdgeWiseObjectiveFunction, agg_obj::MinMaxFair, ::FormulationType, ::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
+function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, agg_obj::MinMaxFair, ::FormulationType, ::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
     # Based on https://onlinelibrary.wiley.com/doi/abs/10.1002/ett.1047.
     start = time_ns()
 
@@ -19,7 +19,7 @@ function compute_routing(rd::RoutingData, obj_edge::EdgeWiseObjectiveFunction, a
     # Iteratively solve it by adding constraints for each edge.
     @variable(m, τ >= 0)
     @objective(m, Min, τ)
-    @constraint(m, mmf[e in edges(rd)], objective_edge_expression(rm, obj_edge, e) <= τ)
+    @constraint(m, mmf[e in edges(rd)], objective_edge_expression(rm, edge_obj, e) <= τ)
 
     for e in edges(rd)
         # Optimise for this iteration.

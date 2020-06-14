@@ -1,4 +1,10 @@
-# Useful data structures for all iterative algorithms.
+# Based on Optimal Oblivious Routing in Polynomial Time
+# http://ttic.uchicago.edu/~harry/pdf/optimal_oblivious_journal.pdf
+# Oblivious ratio: O(log^2 n log log n), n number of nodes
+# http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.4.3883&rep=rep1&type=pdf: theorem 1, p. 9
+
+# Useful data structures for all oblivious iterative algorithms.
+# TODO: also makes sense for robust, move it upwards?
 struct ConsideredTrafficMatrix{T}
     subproblem_objective::Float64
     subproblem_edge::Edge
@@ -98,7 +104,7 @@ end
 function oblivious_subproblem_model(m::Model, rd::RoutingData, e_bar::Edge, current_routing::Routing, type::FormulationType)
     # This function may use another formulation than the master. As the communication between the two is limited to
     # traffic matrices, this is no problem.
-    # TODO: Think about heuristics to solve the subproblem.
+    # TODO: Think about heuristics to solve the subproblems faster.
 
     @variable(m, demand[d in demands(rd)] >= 0)
     rm = basic_routing_model_unscaled(m, rd, demand, type)

@@ -11,13 +11,22 @@ Kleinrock function is defined as:
 """
 abstract type EdgeWiseObjectiveFunction end
 
+supports_min(::EdgeWiseObjectiveFunction) = false
+supports_max(::EdgeWiseObjectiveFunction) = false
+
 struct Load <: EdgeWiseObjectiveFunction end
 struct KleinrockLoad <: EdgeWiseObjectiveFunction end
 struct FortzThorupLoad <: EdgeWiseObjectiveFunction end
 
+supports_min(::Union{Load, KleinrockLoad, FortzThorupLoad}) = true
+supports_max(::Union{Load, KleinrockLoad, FortzThorupLoad}) = true
+
 struct AlphaFairness <: EdgeWiseObjectiveFunction
     α::Float64
 end
+
+supports_min(::AlphaFairness) = true
+supports_max(::AlphaFairness) = false
 
 """
 The aggregation-function objective to optimise, giving one objective function aggregating
@@ -36,13 +45,25 @@ not forbid such combinations, though.
 """
 abstract type AggregationObjectiveFunction end
 
-struct MinimumTotal <: AggregationObjectiveFunction end
-struct MinimumMaximum <: AggregationObjectiveFunction end
-struct MinMaxFair <: AggregationObjectiveFunction
+abstract type MinimisingAggregationObjectiveFunction <: AggregationObjectiveFunction end
+abstract type MaximisingAggregationObjectiveFunction <: AggregationObjectiveFunction end
+
+struct MinimumTotal <: MinimisingAggregationObjectiveFunction end
+struct MinimumMaximum <: MinimisingAggregationObjectiveFunction end
+struct MinMaxFair <: MinimisingAggregationObjectiveFunction
     ε::Float64 # Numerical accuracy when adding MMF constraints.
 
     MinMaxFair(ε::Float64) = new(ε)
     MinMaxFair() = new(1.0e-5)
+end
+
+struct MaximumTotal <: MaximisingAggregationObjectiveFunction end
+struct MaximumMinimum <: MaximisingAggregationObjectiveFunction end
+struct MaxMinFair <: MaximisingAggregationObjectiveFunction
+    ε::Float64 # Numerical accuracy when adding MMF constraints.
+
+    MaxMinFair(ε::Float64) = new(ε)
+    MaxMinFair() = new(1.0e-5)
 end
 
 """

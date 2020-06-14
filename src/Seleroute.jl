@@ -13,11 +13,6 @@ const MOF = MOI.FileFormats
 
 const AbstractSimpleGraph = LightGraphs.AbstractSimpleGraph
 
-# Based on Optimal Oblivious Routing in Polynomial Time
-# http://ttic.uchicago.edu/~harry/pdf/optimal_oblivious_journal.pdf
-# Oblivious ratio: O(log^2 n log log n), n number of nodes
-# http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.4.3883&rep=rep1&type=pdf: theorem 1, p. 9
-
 
 inedges(g, v) = [Edge(iv, v) for iv in inneighbors(g, v)]
 outedges(g, v) = [Edge(v, ov) for ov in outneighbors(g, v)]
@@ -61,21 +56,19 @@ include("output/plots.jl")
 include("output/reports.jl")
 include("experiments/random.jl")
 
-export EdgeWiseObjectiveFunction, AggregationObjectiveFunction, FormulationType,
-       AlgorithmChoice, UncertaintyHandling, UncertainParameters, ModelType,
-       Load, KleinrockLoad, FortzThorupLoad, AlphaFairness, MinimumTotal, MinimumMaximum, MinMaxFair,
-       FlowFormulation, PathFormulation, Automatic, CuttingPlane, DualReformulation,
-       NoUncertaintyHandling, StochasticUncertainty, RobustUncertainty,
-       ObliviousUncertainty, NoUncertainty, UncertainDemand, UncertainCapacity,
-       Topology, topology_to_graphs, remove_unreachable_nodes!,
-       remove_unsatisfiable_demands!, Routing, routing_to_matrix, RoutingSolution,
-       CertainRoutingSolution, flow_routing_to_path, path_routing_to_flow,
-       RoutingData, edges, vertices, demands, n_nodes, n_edges, n_demands, n_paths,
-       FlowScaling, UnitaryFlows, UnscaledFlows, RoutingModel, # copy_model,
-       basic_routing_model_unitary, basic_routing_model_unscaled, total_flow_in_edge,
-       capacity_constraints, mu_capacity_constraints,
-       objective_edge_expression, solve_master_problem, solve_subproblem,
-       compute_loads, compute_max_load, compute_routing,
-       random_similar, random_experiment, random_experiments
-       # Output?
+# Export all symbols. Code copied from JuMP.
+const _EXCLUDE_SYMBOLS = [Symbol(@__MODULE__), :eval, :include]
+
+for sym in names(@__MODULE__, all=true)
+    sym_string = string(sym)
+    if sym in _EXCLUDE_SYMBOLS || startswith(sym_string, "_")
+        continue
+    end
+    if !(Base.isidentifier(sym) || (startswith(sym_string, "@") &&
+         Base.isidentifier(sym_string[2:end])))
+       continue
+    end
+    @eval export $sym
+end
+
 end

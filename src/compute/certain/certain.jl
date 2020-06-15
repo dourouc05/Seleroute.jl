@@ -25,6 +25,10 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::Formulatio
 end
 
 function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, ::MinimumTotal, ::FormulationType, ::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
+    if ! supports_min(edge_obj)
+        @warn "The objective function $edge_obj does not support minimisation. Proceed with caution."
+    end
+
     start = time_ns()
 
     # Create the problem.
@@ -47,6 +51,10 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, :
 end
 
 function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
+    if ! supports_min(edge_obj)
+        @warn "The objective function $edge_obj does not support minimisation. Proceed with caution."
+    end
+    
     start = time_ns()
 
     # Create the problem.
@@ -59,7 +67,7 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, :
 
     # Objective function. Don't define a lower bound, in case the individual
     # terms do not have such a lower bound (like α-fairness, even though it
-    # does not make much sense to minimise). 
+    # does not make much sense to minimise).
     @variable(m, obj)
     for e in edges(rd)
         @constraint(m, obj >= objective_edge_expression(rm, edge_obj, e))

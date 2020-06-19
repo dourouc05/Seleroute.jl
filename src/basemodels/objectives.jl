@@ -63,33 +63,57 @@ function objective_edge_expression(rm::RoutingModel, edge_obj::AlphaFairness, e:
     alphafairness = @variable(rm.model, base_name="alphafairness[$e]", lower_bound=-2.0e4)
     load_e = objective_edge_expression(rm, Load(), e, dm)
 
-    c = if α == 0.5
+    c = if α == 0.0 && ! edge_obj.force_power_cone
+        # Very simple case, actually linear (it can even be minimised):
+        #     af == load
+        @constraint(rm.model, load_e == alphafairness)
+    elseif α == 0.5 && ! edge_obj.force_power_cone
         # This is a very specific case where the power cone is not really
-        # needed, two second-order cones are sufficient. These cone are more
+        # needed, one second-order cone is sufficient. This cone is more
         # widely tolerated.
-        #     af ≤ ½ √load
-        #   ⟺ ϕ² ≤ l          ∧    af ≤ ½ √(ϕ ϕ)
-        #   ⟺ ϕ² ≤ l × 1/2    ∧    af² ≤ (ϕ/√2) (ϕ/√2)
-        ϕ = @variable(rm.model, base_name="alphafairness_phi[$e]", lower_bound=0)
-
-        # ϕ² ≤ l
-        c = @constraint(rm.model, [ϕ, ϕ, load_e] in RotatedSecondOrderCone())
-        set_name(c, "alphafairness_phi[$(e)]")
-
-        # af ≤ √(ϕ ϕ)
-        @constraint(rm.model, [ϕ/2, ϕ/2, alphafairness] in RotatedSecondOrderCone())
+        #     af ≤ 2 √load
+        #   ⟺ af² ≤ 4 load = 2 ⋅ 2 ⋅ load
+        @constraint(rm.model, alphafairness >= 0)
+        @constraint(rm.model, [2, load_e, alphafairness] in RotatedSecondOrderCone())
     elseif α == 1.0
         # The function becomes a logarithm:
         #     af ≤ log(load)
         #     1 × exp(af / 1) ≤ load
         #     (af, 1, l) ∈ EXP
         @constraint(rm.model, [alphafairness, 1, load_e] in MOI.ExponentialCone())
+    elseif α == 1.5 && ! edge_obj.force_power_cone
+        # Another very specific case:
+        #     af ≤ -2 / √load
+        #     af ≥ 2 / √load
+        # Use the DCP to propose a reformulation of this:
+        #     ϕ ≤ √load,    af ≥ 2 / ϕ
+        #                   (af, ϕ, 2) ∈ RSOC
+        phi = @variable(rm.model, lower_bound=0.0)
+        set_name(phi, "alphafairness_phi[$(e)]")
+
+        c = @constraint(rm.model, [1/2, load_e, phi] in RotatedSecondOrderCone())
+        set_name(c, "alphafairness_phi[$(e)]")
+
+        @constraint(rm.model, [- alphafairness, phi, sqrt(2)] in RotatedSecondOrderCone())
+    elseif α == 2.0 && ! edge_obj.force_power_cone
+        # Another very specific case:
+        #     af ≤ -1 / load
+        # Use the DCP to propose a reformulation of this:
+        #     ϕ ≥ 1 / load,    af <= - ϕ
+        phi = @variable(rm.model, lower_bound=0.0)
+        set_name(phi, "alphafairness_phi[$(e)]")
+
+        c = @constraint(rm.model, [phi / sqrt(2), load_e / sqrt(2), 1] in RotatedSecondOrderCone())
+        set_name(c, "alphafairness_phi[$(e)]")
+
+        @constraint(rm.model, alphafairness <= - phi)
     elseif α < 1.0
-        # Generic case: 0.0 < α < 1.0 (also works for α = ½).
+        # Generic case: 0.0 < α < 1.0.
         #     af ≤ load^(1-α) / (1 - α),     with α < 1, i.e. 1 - α > 0
         #   ⟺ af ≤ load^(1-α) × 1^α / (1 - α)
         #   ⟺ (1 - α) × af ≤ load^(1-α) × 1^α
-        @constraint(rm.model, [(1 - α) * load_e, 1, alphafairness] in MOI.PowerCone(1.0 - α))
+        @constraint(rm.model, alphafairness >= 0)
+        @constraint(rm.model, [load_e, 1, alphafairness * (1 - α)] in MOI.PowerCone(1.0 - α))
     else
         @assert α > 1.0
         # Last case: α > 1.0.
@@ -98,7 +122,11 @@ function objective_edge_expression(rm::RoutingModel, edge_obj::AlphaFairness, e:
         #   ⟺ 1 - α ≤ load^(1-α) × t^-1
         #   ⟺ (1 - α)^(-α)  ≤ load^(1-α)/(-α) × t^-1/(-α)
         #   ⟺ 1 / (1 - α)^α ≤ load^(α-1)/α × 1^(1/α)
-        @constraint(rm.model, [1.0 / (1 - α)^α, load_e, alphafairness] in MOI.PowerCone((α - 1.0) / α))
+        neg_af = @variable(rm.model, lower_bound=0.0)
+        set_name(neg_af, "alphafairness_neg[$(e)]")
+        c = @constraint(rm.model, alphafairness == -neg_af)
+        set_name(c, "alphafairness_neg[$(e)]")
+        @constraint(rm.model, [1.0 / (α - 1)^α, load_e, neg_af] in MOI.PowerCone((α - 1.0) / α))
     end
 
     set_name(c, "alphafairness[$(e)]")

@@ -38,10 +38,10 @@ struct TestEdgeWise <: EdgeWiseObjectiveFunction end
 
         function __check_feasible_knowncapa_flow(rm::RoutingModel)
             @test rm.routing !== nothing
-            @test rm.constraints_source_in !== nothing && length(rm.constraints_source_in) > 0
+            @test rm.constraints_source_in !== nothing && length(rm.constraints_source_in) >= 0
             @test rm.constraints_source_out !== nothing && length(rm.constraints_source_out) > 0
             @test rm.constraints_target_in !== nothing && length(rm.constraints_target_in) > 0
-            @test rm.constraints_target_out !== nothing && length(rm.constraints_target_out) > 0
+            @test rm.constraints_target_out !== nothing && length(rm.constraints_target_out) >= 0
             @test rm.constraints_balance !== nothing && length(rm.constraints_balance) > 0
             @test rm.constraints_convexity === nothing || length(rm.constraints_convexity) == 0
 

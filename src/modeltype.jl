@@ -23,10 +23,23 @@ supports_max(::Union{Load, KleinrockLoad, FortzThorupLoad}) = true
 
 struct AlphaFairness <: EdgeWiseObjectiveFunction
     α::Float64
+    force_power_cone::Bool # When there is a choice between a SOCP-based and a power-cone-based formulation, use the latter.
+
+    AlphaFairness() = new(1.0, false)
+    AlphaFairness(α::Float64) = new(α, false)
+    function AlphaFairness(α::Float64, force_power_cone::Bool)
+        special_cases = [0.0, 0.5, 1.5, 2.0] # Linear (0.0) or SOCP-representable.
+        if ! (α in special_cases) && force_power_cone
+            @warn "The power-cone formulation is forced to be used, " *
+                  "but it is the only available one for α = $(α). " *
+                  "The parameter `force_power_cone` is therefore ignored."
+        end
+        return new(α, force_power_cone)
+    end
 end
 
-supports_min(::AlphaFairness) = true
-supports_max(::AlphaFairness) = false
+supports_min(af::AlphaFairness) = af.α == 0.0 && ! af.force_power_cone # Only for LP model.
+supports_max(::AlphaFairness) = true
 
 """
 The aggregation-function objective to optimise, giving one objective function aggregating

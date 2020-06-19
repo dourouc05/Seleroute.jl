@@ -90,7 +90,12 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         end
     end
 
-    @objective(m, Min, obj)
+    if agg_obj == MinimumMaximum()
+        @objective(m, Min, obj)
+    else
+        @assert agg_obj == MaximumMinimum()
+        @objective(m, Max, obj)
+    end
 
     # Done!
     optimize!(m)

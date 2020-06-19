@@ -1,7 +1,8 @@
 @testset "Compute" begin
     # Required cones: SOCP (Kleinrock, α-fairness), EXP (α-fairness), POW (α-fairness).
     # ECOS only provides SOCP and EXP, use SCS for the rest (worse accuracy that ECOS).
-    opt = ECOS.Optimizer
+    opt_ecos = ECOS.Optimizer
+    opt_scs = SCS.Optimizer
 
     g = MetaDiGraph()
     add_vertex!(g, :name, "A")
@@ -23,11 +24,28 @@
     # Include solver-specific tests.
     include("compute_certain.jl")
     @testset "Formulation type: $type" for type in [FlowFormulation(), PathFormulation()]
-        @testset "Edge-wise objective: $edge_obj" for edge_obj in [Load(), KleinrockLoad(), FortzThorupLoad(), AlphaFairness(0.5), AlphaFairness(1.0)]
+        @testset "Edge-wise objective: $edge_obj" for edge_obj in [
+                Load(), KleinrockLoad(), FortzThorupLoad(),
+                AlphaFairness(0.0, false), AlphaFairness(0.0, true),
+                AlphaFairness(0.5, false), AlphaFairness(0.5, true),
+                AlphaFairness(1.0),
+                AlphaFairness(1.5, true), AlphaFairness(1.5, false),
+                AlphaFairness(2.0, true), AlphaFairness(2.0, false)
+            ]
             @testset "No uncertainty" begin
+                opt = opt_ecos
+                if typeof(edge_obj) == AlphaFairness && edge_obj.force_power_cone
+                    opt = opt_scs
+                end
+
                 __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
                 __testset_nouncertainty_mintot(edge_obj, type, opt, g, paths, k, d, dm)
-                __testset_nouncertainty_mmf(edge_obj, type, opt, g, paths, k, d, dm)
+
+                if typeof(edge_obj) != AlphaFairness || (! edge_obj.force_power_cone && edge_obj.α != 0.0)
+                    # Power-cone models cannot be solved to optimality with ECOS or SCS,
+                    # and they also sometimes have problems with linear models.
+                    __testset_nouncertainty_mmf(edge_obj, type, opt, g, paths, k, d, dm)
+                end
             end
         end
     end

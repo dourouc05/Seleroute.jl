@@ -1,7 +1,7 @@
 using Seleroute
 
 oneGbps = 1024
-halfGbps = 512
+halfGbps = 500 # Many topologies will reach a 100% load with 512. 
 
 topologies = Vector{Topology}()
 

@@ -17,7 +17,7 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     end
 
     # Iteratively solve it by adding constraints for each edge.
-    @variable(m, τ >= 0)
+    @variable(m, τ)
     @objective(m, Min, τ)
     @constraint(m, mmf[e in edges(rd)], objective_edge_expression(rm, edge_obj, e) <= τ)
 
@@ -30,9 +30,13 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         _export_lp_if_allowed(rd, m, "lp_$(e)")
         _export_lp_if_failed(rd, status, m, "error_$(e)", "Current problem could not be solved!")
 
-        # Add this value as a requirement for the next iterations (with some numerical leeway).
-        # This is not needed for the last iteration.
+        # TODO: special case for Kleinrock when the optimum load is 100%? Add a debugging routing just for this? 
+
+        # Add this value as a requirement for the next iterations (with some
+        # numerical leeway). This is not needed for the last iteration.
         if e != last_edge
+            # Replace "expr_e ≤ τ" (τ being a variable) by "expr_e ≤ obj"
+            # (with obj constant).
             set_normalized_rhs(mmf[e], objective_value(m) * (1 + agg_obj.ε))
             set_normalized_coefficient(mmf[e], τ, 0)
         end

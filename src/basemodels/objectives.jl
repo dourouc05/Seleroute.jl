@@ -1,3 +1,5 @@
+# TODO: when building constraints, check whether they have already been built to avoid having them twice in the formulation.
+
 function objective_edge_expression(::RoutingModel, edge_obj::EdgeWiseObjectiveFunction, ::Edge, ::Dict{Edge{Int}, Float64})
     error("Edge-wise objective function not implemented: $edge_obj")
 end

@@ -35,12 +35,18 @@ function topology_to_graphs(t::Topology; make_network_undirected::Bool=true)
 
     # Demands.
     k = MetaDiGraph()
+    dm = Dict{Edge{Int}, Float64}()
+    sizehint!(dm, size(t.nodes, 1))
+
     for i in 1:size(t.nodes, 1)
         add_vertex!(k, :name, t.nodes[i, 2])
     end
     for i in 1:size(t.traffic, 1)
-        add_edge!(k, Int(t.traffic[i, 1]), Int(t.traffic[i, 2]), :demand, t.traffic[i, 3])
+        ds = Int(t.traffic[i, 1])
+        dt = Int(t.traffic[i, 2])
+        add_edge!(k, ds, dt, :demand, t.traffic[i, 3]) # TODO: deprecate :demand here? So that all metadata from the graph is ignored. This should ease implementation of stochastic uncertainty.
+        dm[Edge(ds, dt)] = t.traffic[i, 3]
     end
 
-    return g, k
+    return g, k, dm
 end

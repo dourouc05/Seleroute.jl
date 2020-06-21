@@ -1,8 +1,11 @@
 struct Topology
-    nodes::Array{Any, 2}
-    edges::Array{Float64, 2}
-    traffic::Array{Float64, 2}
+    name::AbstractString
+    nodes::Matrix{Any}
+    edges::Matrix{Float64}
+    traffic::Matrix{Float64}
 end
+
+Topology(nodes::Matrix{Any}, edges::Matrix{Float64}, traffic::Matrix{Float64}) = Topology("", nodes, edges, traffic)
 
 function topology_to_graphs(t::Topology; make_network_undirected::Bool=true)
     # make_network_undirected: whether edges should be duplicated to make the network effectively undirected.

@@ -163,8 +163,13 @@ struct ModelType
     unc::UncertaintyHandling
     uncparams::UncertainParameters
 
-    function ModelType(edge_obj::EdgeWiseObjectiveFunction, agg_obj::AggregationObjectiveFunction, type::FormulationType, cg::Bool,
-                       algo::AlgorithmChoice, unc::UncertaintyHandling, uncparams::UncertainParameters)
+    function ModelType(edge_obj::EdgeWiseObjectiveFunction,
+                       agg_obj::AggregationObjectiveFunction,
+                       type::FormulationType=FlowFormulation(),
+                       cg::Bool=false,
+                       algo::AlgorithmChoice=Automatic(),
+                       unc::UncertaintyHandling=NoUncertaintyHandling(),
+                       uncparams::UncertainParameters=NoUncertainty())
         is_obj_load = edge_obj in [Load(), KleinrockLoad(), FortzThorupLoad()]
         if is_obj_load && uncparams == UncertainCapacity()
             error("Load-related edge-wise objective functions like $(edge_obj) are not supposed to be used with capacity uncertainty.")
@@ -211,6 +216,7 @@ end
 # In case you forgot about parentheses...
 function ModelType(edge_obj::Type, agg_obj::Type, type::Type, cg::Bool,
                    algo::Type, unc::Type, uncparams::Type)
+    @warn "Deprecated"
     return ModelType(edge_obj(), agg_obj(), type(), cg, algo(), unc(), uncparams())
 end
 

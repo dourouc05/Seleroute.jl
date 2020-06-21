@@ -54,7 +54,7 @@ The time to create the `RoutingData` object is memorised in `time_precompute_ms`
 """
 mutable struct RoutingData
     g::MetaDiGraph
-    k::AbstractSimpleGraph
+    k::AbstractGraph
     solver
     name::String
     time_precompute_ms::Float64
@@ -155,7 +155,7 @@ These parameters only control the output of the solving process:
   or be an empty string to disable all output.
 """
 function RoutingData(g::AbstractMetaGraph, # Not MetaDiGraph, to show a more interesting error message if the graph is not directed.
-                     k::AbstractSimpleGraph,
+                     k::AbstractGraph,
                      solver,
                      model_type::ModelType;
                      name::String="",

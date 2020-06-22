@@ -304,6 +304,7 @@ function remove_unsatisfiable_demands!(g::AbstractGraph, k::AbstractGraph)
     return nremoved
 end
 
+graph(rd::RoutingData) = rd.g
 edges(rd::RoutingData) = edges(rd.g)
 vertices(rd::RoutingData) = vertices(rd.g)
 demands(rd::RoutingData) = edges(rd.k)

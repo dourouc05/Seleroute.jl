@@ -15,6 +15,7 @@ function _check_weight_matrix(weight_matrix)
 end
 
 function _build_path(state::LightGraphs.AbstractPathState, demand::Edge)
+    # TODO: use LightGraphs.enumerate_paths?
     reverse_nodes = [dst(demand)]
     current_node = dst(demand)
     while current_node != src(demand)

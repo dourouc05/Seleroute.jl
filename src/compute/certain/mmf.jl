@@ -1,6 +1,6 @@
 # TODO: column generation for all these functions.
 
-function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, agg_obj::MinMaxFair, ::FormulationType, ::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
+function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, agg_obj::MinMaxFair, type::FormulationType, cg::Val{false}, algo::Automatic, unc::NoUncertaintyHandling, uncparams::NoUncertainty)
     # Based on https://onlinelibrary.wiley.com/doi/abs/10.1002/ett.1047.
     start = time_ns()
 
@@ -26,11 +26,22 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         optimize!(m)
         status = termination_status(rm.model)
 
+        # Debug infeasibility if need be.
+        println(status)
+        if status == MOI.INFEASIBLE
+            rd.logmessage("This iteration of MMF yielded an infeasible optimisation program. ")
+            d = _debug_infeasibility_mmf(rd, edge_obj, agg_obj, type, cg, algo, unc, uncparams)
+            if d !== nothing
+                rd.logmessage("The source of infeasibility could be automaticall detected: ")
+                rd.logmessage(d)
+            else
+                rd.logmessage("The source of infeasibility could not be automatically detected.")
+            end
+        end
+
         # Export if needed.
         _export_lp_if_allowed(rd, m, "lp_$(e)")
         _export_lp_if_failed(rd, status, m, "error_$(e)", "Current problem could not be solved!")
-
-        # TODO: special case for Kleinrock when the optimum load is 100%? Add a debugging routing just for this? 
 
         # Add this value as a requirement for the next iterations (with some
         # numerical leeway). This is not needed for the last iteration.
@@ -48,4 +59,28 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
 
     return CertainRoutingSolution(rd, rd.time_precompute_ms, (stop - start) / 1_000_000., 0.0,
                                   NaN, rd.traffic_matrix, Routing(rd, value.(rm.routing)), rm)
+end
+
+_debug_infeasibility_mmf(::RoutingData, ::EdgeWiseObjectiveFunction,
+                         ::MinMaxFair, ::FormulationType, ::Val, ::Automatic,
+                         ::NoUncertaintyHandling, ::NoUncertainty) = nothing
+
+function _debug_infeasibility_mmf(rd::RoutingData, ::KleinrockLoad,
+                                  ::MinMaxFair, type::FormulationType,
+                                  ::Val{false}, ::Automatic,
+                                  ::NoUncertaintyHandling, ::NoUncertainty)
+    # Main source of infeasibility: impossible to have links with a load less
+    # than 100%.
+    # Technique: minimise the maximum load (i.e. not Kleinrock), check if it
+    # is 100%.
+    r = compute_routing(rd, Load(), MinimumMaximum(), type, Val(false),
+                        Automatic(), NoUncertaintyHandling(), NoUncertainty())
+    if compute_max_load(r) >= 0.99999
+        return "This network cannot withstand this traffic matrix: " *
+               "its maximum load is 100% (i.e. the most loaded link is loaded " *
+               "at 100%, when minimising this maximum load). " *
+               "Kleinrock function associates an infinite penalty to links " *
+               "with such a high load."
+    end
+    return nothing
 end

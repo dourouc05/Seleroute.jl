@@ -131,6 +131,9 @@ function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64
             sp = desopo_pape_shortest_paths(ug, src(d))
             path_vertices = enumerate_paths(sp, dst(d))
             path = map(Edge, zip(path_vertices[1:end-1], path_vertices[2:end]))
+            if length(path) == 0
+                break
+            end
             path_weight = minimum(weight_e(e) for e in path)
 
             # Update the data structures with this new path.

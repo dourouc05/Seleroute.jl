@@ -21,6 +21,7 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     @objective(m, Min, τ)
     @constraint(m, mmf[e in edges(rd)], objective_edge_expression(rm, edge_obj, e) <= τ)
 
+    # TODO: memorise all routings, at each iteration? 
     for e in edges(rd)
         # Optimise for this iteration.
         optimize!(m)

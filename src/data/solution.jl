@@ -57,18 +57,45 @@ end
 Data structure holding results of the computations for a routing.
 All information from intermediate iterations are kept within this object.
 
-  * `data`: a pointer to the `RoutingData` object that was used for the computations
-  * `n_iter`: the number of iterations
-  * `n_matrices`: the number of matrices added into the formulation
+  * `data`: a pointer to the `RoutingData` object that was used for the
+    computations.
+  * `n_iter`: the number of iterations (the exact meaning of this field depends
+    on the algorithm).
+  * `n_matrices`: the number of traffic matrices added into the formulation. It
+    may be equal to the number of iterations, depending on the algorithm.
   * `n_cuts`: the number of added constraints.
+  * `n_columns`: the number of added columns, for column-generation based
+    algorithms. Its value should be 0 for other algorithms.
 
-The following vectors contain one entry per iteration (i.e. entry 1 is the first iteration).
+Three different timings are measured for the whole execution (always in
+milliseconds):
 
-  * `objectives`: the evolution of the oblivious rations over the iterations.
-  * `matrices`: the demand matrices generated during the execution. There is no such matrix at the last iteration.
-  * `routings`: the various routings generated during the execution.
+  * `time_precompute_ms`: time to prepare the data structures before the actual
+    computations. For instance, it may account for detection of loops or
+    unroutable demands; for column-generation algorithms, it includes the time
+    to generate the first few paths (i.e. before any pricing process can take
+    place).
+  * `time_solve_ms`: time to compute the routing.
+  * `time_export_ms`: time to export the solution and the intermediate results,
+    when requested.
+
+The following vectors contain information about the execution of the algorithm.
+Not all vectors have as many entries as iterations, even though it is expected
+to be the most likely case.
+
+  * `objectives`: the value of the objective function that is being optimised
+    at each iteration.
+  * `matrices`: the demand matrices generated during the execution. It may
+    contain a single matrix if the algorithm does not generate new matrices
+    during its execution. There may be no such matrix at the last iteration.
+  * `routings`: the various routings generated during the execution. There must
+    be a routing per iteration.
+  * `master_model`: the final optimisation model, with all generated cuts and
+    columns. Solving it should give the same solution as `routings[end]`. 
 """
 struct RoutingSolution
+    # TODO: how to map the matrices to the iteration they have been generated at?
+    # TODO: time per iteration?
     data::RoutingData
     n_iter::Int
     n_matrices::Int
@@ -87,9 +114,9 @@ end
 
 function CertainRoutingSolution(data::RoutingData,
                                 time_precompute_ms::Float64, time_solve_ms::Float64, time_export_ms::Float64,
-                                mu::Float64, matrix::Dict{Edge{Int}, Float64}, routing::Routing, model::RoutingModel)
+                                objective::Float64, matrix::Dict{Edge{Int}, Float64}, routing::Routing, model::RoutingModel)
     return RoutingSolution(data, 0, 1, 0, 0, time_precompute_ms, time_solve_ms, time_export_ms,
-                           Float64[mu], Dict{Edge{Int}, Float64}[matrix], Routing[routing], model)
+                           Float64[objective], Dict{Edge{Int}, Float64}[matrix], Routing[routing], model)
 end
 
 function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64}; demand=nothing, ε::Float64=1.e-5)

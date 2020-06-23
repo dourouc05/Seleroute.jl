@@ -4,6 +4,8 @@ oneGbps = 1024
 halfGbps = 512
 traffic_scaling = 0.95 # Many topologies will reach a 100% load otherwise.
 
+INCLUDE_OVERLOADED_TOPOLOGIES = false # Some topologies have a very low capacity for high demands; enable them by setting this to true. These topologies would need a very low traffic_scaling factor to have a load under 100%.
+
 topologies = Vector{Topology}()
 
 # First tested topology.
@@ -32,12 +34,14 @@ traffic_matrix[:, 3] .*= traffic_scaling
 push!(topologies, Topology("olver-various", nodes_matrix, edges_matrix, traffic_matrix))
 
 # Variant, with other capacities (lower).
-nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"]], [2, 1])
-edges_matrix = [[1, 2, oneGbps / 5] [1, 3, halfGbps] [2, 5, oneGbps / 0.21] [3, 4, oneGbps / 4.96] [3, 5, oneGbps / 2.47] [4, 6, oneGbps / 0.147] [5, 6, oneGbps / 5] [1, 7, 2 * oneGbps] [2, 7, 0.147 * oneGbps] [3, 7, 5 * oneGbps] [5, 7, oneGbps] [6, 7, oneGbps]]'
-traffic_matrix = Float64[[1, 3, halfGbps] [1, 6, halfGbps] [4, 1, halfGbps] [4, 5, halfGbps] [5, 2, halfGbps] [6, 4, halfGbps]]'
-traffic_matrix[:, 3] .*= traffic_scaling
+if INCLUDE_OVERLOADED_TOPOLOGIES
+    nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"]], [2, 1])
+    edges_matrix = [[1, 2, oneGbps / 5] [1, 3, halfGbps] [2, 5, oneGbps / 0.21] [3, 4, oneGbps / 4.96] [3, 5, oneGbps / 2.47] [4, 6, oneGbps / 0.147] [5, 6, oneGbps / 5] [1, 7, 2 * oneGbps] [2, 7, 0.147 * oneGbps] [3, 7, 5 * oneGbps] [5, 7, oneGbps] [6, 7, oneGbps]]'
+    traffic_matrix = Float64[[1, 3, halfGbps] [1, 6, halfGbps] [4, 1, halfGbps] [4, 5, halfGbps] [5, 2, halfGbps] [6, 4, halfGbps]]'
+    traffic_matrix[:, 3] .*= traffic_scaling
 
-push!(topologies, Topology("olver-various-inv-partial", nodes_matrix, edges_matrix, traffic_matrix))
+    push!(topologies, Topology("olver-various-inv-partial", nodes_matrix, edges_matrix, traffic_matrix))
+end
 
 # Variant, with other capacities (higher).
 nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"]], [2, 1])
@@ -56,20 +60,24 @@ traffic_matrix[:, 3] .*= traffic_scaling
 push!(topologies, Topology("olver-without_G", nodes_matrix, edges_matrix, traffic_matrix))
 
 # Variant, with nonuniform capacities.
-nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"]], [2, 1])
-edges_matrix = [[1, 2, 5 * oneGbps] [1, 3, halfGbps] [2, 5, 0.21 * oneGbps] [3, 4, 4.96 * oneGbps] [3, 5, 2.47 * oneGbps] [4, 6, 0.147 * oneGbps] [5, 6, 5 * oneGbps]]'
-traffic_matrix = Float64[[1, 3, halfGbps] [1, 6, halfGbps] [4, 1, halfGbps] [4, 5, halfGbps] [5, 2, halfGbps] [6, 4, halfGbps]]'
-traffic_matrix[:, 3] .*= traffic_scaling
+if INCLUDE_OVERLOADED_TOPOLOGIES
+    nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"]], [2, 1])
+    edges_matrix = [[1, 2, 5 * oneGbps] [1, 3, halfGbps] [2, 5, 0.21 * oneGbps] [3, 4, 4.96 * oneGbps] [3, 5, 2.47 * oneGbps] [4, 6, 0.147 * oneGbps] [5, 6, 5 * oneGbps]]'
+    traffic_matrix = Float64[[1, 3, halfGbps] [1, 6, halfGbps] [4, 1, halfGbps] [4, 5, halfGbps] [5, 2, halfGbps] [6, 4, halfGbps]]'
+    traffic_matrix[:, 3] .*= traffic_scaling
 
-push!(topologies, Topology("olver-without_G-various", nodes_matrix, edges_matrix, traffic_matrix))
+    push!(topologies, Topology("olver-without_G-various", nodes_matrix, edges_matrix, traffic_matrix))
+end
 
 # Variant, with other capacities (lower).
-nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"]], [2, 1])
-edges_matrix = [[1, 2, oneGbps / 5] [1, 3, halfGbps] [2, 5, oneGbps / 0.21] [3, 4, oneGbps / 4.96] [3, 5, oneGbps / 2.47] [4, 6, oneGbps / 0.147] [5, 6, oneGbps / 5]]'
-traffic_matrix = Float64[[1, 3, halfGbps] [1, 6, halfGbps] [4, 1, halfGbps] [4, 5, halfGbps] [5, 2, halfGbps] [6, 4, halfGbps]]'
-traffic_matrix[:, 3] .*= traffic_scaling
+if INCLUDE_OVERLOADED_TOPOLOGIES
+    nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"]], [2, 1])
+    edges_matrix = [[1, 2, oneGbps / 5] [1, 3, halfGbps] [2, 5, oneGbps / 0.21] [3, 4, oneGbps / 4.96] [3, 5, oneGbps / 2.47] [4, 6, oneGbps / 0.147] [5, 6, oneGbps / 5]]'
+    traffic_matrix = Float64[[1, 3, halfGbps] [1, 6, halfGbps] [4, 1, halfGbps] [4, 5, halfGbps] [5, 2, halfGbps] [6, 4, halfGbps]]'
+    traffic_matrix[:, 3] .*= traffic_scaling
 
-push!(topologies, Topology("olver-without_G-various-inv", nodes_matrix, edges_matrix, traffic_matrix))
+    push!(topologies, Topology("olver-without_G-various-inv", nodes_matrix, edges_matrix, traffic_matrix))
+end
 
 ### Topology Zoo
 # Abilene (http://www.topology-zoo.org/files/Abilene.gml).
@@ -165,7 +173,7 @@ push!(topologies, Topology("full_binary_tree-connected_inner-high-capacity-vario
 # graphs, plus a few crossing the trees. First tree rooted at 1, second at 8.
 # Inspired by https://epubs.siam.org/doi/abs/10.1137/S0895479896312262.
 nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"] [7, "G"] [8, "H"] [9, "I"] [10, "J"] [11, "K"] [12, "L"] [13, "M"] [14, "N"]], [2, 1])
-edges_matrix = [[1, 2, oneGbps] [1, 3, oneGbps] [2, 4, oneGbps] [2, 5, oneGbps] [3, 6, oneGbps] [3, 7, oneGbps] [8, 9, oneGbps] [8, 10, oneGbps] [9, 11, oneGbps] [9, 12, oneGbps] [10, 13, oneGbps] [10, 14, oneGbps] [1, 8, oneGbps]]'
+edges_matrix = [[1, 2, 1.5 * oneGbps] [1, 3, 1.5 * oneGbps] [2, 4, 1.5 * oneGbps] [2, 5, 1.5 * oneGbps] [3, 6, 1.5 * oneGbps] [3, 7, 1.5 * oneGbps] [8, 9, 1.5 * oneGbps] [8, 10, 1.5 * oneGbps] [9, 11, 1.5 * oneGbps] [9, 12, 1.5 * oneGbps] [10, 13, 1.5 * oneGbps] [10, 14, 1.5 * oneGbps] [1, 8, 1.5 * oneGbps]]'
 traffic_matrix = Float64[[1, 7, halfGbps] [2, 6, halfGbps] [6, 4, halfGbps] [7, 5, halfGbps] [4, 5, halfGbps] [8, 14, halfGbps] [9, 13, halfGbps] [13, 11, halfGbps] [14, 12, halfGbps] [11, 12, halfGbps] [2, 9, halfGbps] [10, 2, halfGbps]]'
 traffic_matrix[:, 3] .*= traffic_scaling
 
@@ -175,7 +183,7 @@ push!(topologies, Topology("double_tree", nodes_matrix, edges_matrix, traffic_ma
 # connected. Symmetric demands for the two graphs, plus a few crossing the trees
 # (unchanged from 11). First tree rooted at 1, second at 8.
 nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"] [7, "G"] [8, "H"] [9, "I"] [10, "J"] [11, "K"] [12, "L"] [13, "M"] [14, "N"]], [2, 1])
-edges_matrix = [[1, 2, oneGbps] [1, 3, oneGbps] [2, 4, oneGbps] [2, 5, oneGbps] [3, 6, oneGbps] [3, 7, oneGbps] [8, 9, oneGbps] [8, 10, oneGbps] [9, 11, oneGbps] [9, 12, oneGbps] [10, 13, oneGbps] [10, 14, oneGbps] [1, 8, oneGbps] [2, 9, oneGbps] [3, 10, oneGbps] [4, 11, oneGbps] [5, 12, oneGbps] [6, 13, oneGbps] [7, 14, oneGbps]]'
+edges_matrix = [[1, 2, 1.5 * oneGbps] [1, 3, 1.5 * oneGbps] [2, 4, 1.5 * oneGbps] [2, 5, 1.5 * oneGbps] [3, 6, 1.5 * oneGbps] [3, 7, 1.5 * oneGbps] [8, 9, 1.5 * oneGbps] [8, 10, 1.5 * oneGbps] [9, 11, 1.5 * oneGbps] [9, 12, 1.5 * oneGbps] [10, 13, 1.5 * oneGbps] [10, 14, 1.5 * oneGbps] [1, 8, 1.5 * oneGbps] [2, 9, 1.5 * oneGbps] [3, 10, 1.5 * oneGbps] [4, 11, 1.5 * oneGbps] [5, 12, 1.5 * oneGbps] [6, 13, 1.5 * oneGbps] [7, 14, 1.5 * oneGbps]]'
 traffic_matrix = Float64[[1, 7, halfGbps] [2, 6, halfGbps] [6, 4, halfGbps] [7, 5, halfGbps] [4, 5, halfGbps] [8, 14, halfGbps] [9, 13, halfGbps] [13, 11, halfGbps] [14, 12, halfGbps] [11, 12, halfGbps] [2, 9, halfGbps] [10, 2, halfGbps]]'
 traffic_matrix[:, 3] .*= traffic_scaling
 
@@ -184,12 +192,14 @@ push!(topologies, Topology("double_tree-fully_connected", nodes_matrix, edges_ma
 # Variant. Two trees, full binary, depth of 3. The corresponding nodes are fully
 # connected. Symmetric demands for the two graphs, plus a few crossing the trees
 # (unchanged from 11). First tree rooted at 1, second at 8.
-nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"] [7, "G"] [8, "H"] [9, "I"] [10, "J"] [11, "K"] [12, "L"] [13, "M"] [14, "N"]], [2, 1])
-edges_matrix = [[1, 2, 14.24 * oneGbps] [1, 3, .01 * oneGbps] [2, 4, pi * oneGbps] [2, 5, 10 * oneGbps] [3, 6, oneGbps / pi] [3, 7, .001 * oneGbps] [8, 9, 10 * oneGbps] [8, 10, .01 * oneGbps] [9, 11, oneGbps] [9, 12, 10 * oneGbps] [10, 13, oneGbps] [10, 14, oneGbps] [1, 8, 10 * oneGbps] [2, 9, oneGbps] [3, 10, oneGbps] [4, 11, 10 * oneGbps] [5, 12, oneGbps] [6, 13, oneGbps] [7, 14, 10 * oneGbps]]'
-traffic_matrix = Float64[[1, 7, halfGbps] [2, 6, .1 * halfGbps] [6, 4, halfGbps] [7, 5, 2.4 * halfGbps] [4, 5, halfGbps] [8, 14, 5 * halfGbps] [9, 13, halfGbps] [13, 11, halfGbps] [14, 12, 1.85 * halfGbps] [11, 12, halfGbps] [2, 9, halfGbps] [10, 2, halfGbps]]'
-traffic_matrix[:, 3] .*= traffic_scaling
+if INCLUDE_OVERLOADED_TOPOLOGIES
+    nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"] [7, "G"] [8, "H"] [9, "I"] [10, "J"] [11, "K"] [12, "L"] [13, "M"] [14, "N"]], [2, 1])
+    edges_matrix = [[1, 2, 14.24 * oneGbps] [1, 3, .01 * oneGbps] [2, 4, pi * oneGbps] [2, 5, 10 * oneGbps] [3, 6, oneGbps / pi] [3, 7, .001 * oneGbps] [8, 9, 10 * oneGbps] [8, 10, .01 * oneGbps] [9, 11, oneGbps] [9, 12, 10 * oneGbps] [10, 13, oneGbps] [10, 14, oneGbps] [1, 8, 10 * oneGbps] [2, 9, oneGbps] [3, 10, oneGbps] [4, 11, 10 * oneGbps] [5, 12, oneGbps] [6, 13, oneGbps] [7, 14, 10 * oneGbps]]'
+    traffic_matrix = Float64[[1, 7, halfGbps] [2, 6, .1 * halfGbps] [6, 4, halfGbps] [7, 5, 2.4 * halfGbps] [4, 5, halfGbps] [8, 14, 5 * halfGbps] [9, 13, halfGbps] [13, 11, halfGbps] [14, 12, 1.85 * halfGbps] [11, 12, halfGbps] [2, 9, halfGbps] [10, 2, halfGbps]]'
+    traffic_matrix[:, 3] .*= traffic_scaling
 
-push!(topologies, Topology("double_tree-fully_connected-various", nodes_matrix, edges_matrix, traffic_matrix))
+    push!(topologies, Topology("double_tree-fully_connected-various", nodes_matrix, edges_matrix, traffic_matrix))
+end
 
 # Variant. Two trees, full binary, depth of 3. The corresponding nodes are
 # connected (a few edges do not exist, the ones that correspond to demands:
@@ -197,7 +207,7 @@ push!(topologies, Topology("double_tree-fully_connected-various", nodes_matrix, 
 # two graphs, plus a few crossing the trees (unchanged from 11). First tree
 # rooted at 1, second at 8.
 nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"] [7, "G"] [8, "H"] [9, "I"] [10, "J"] [11, "K"] [12, "L"] [13, "M"] [14, "N"]], [2, 1])
-edges_matrix = [[1, 2, oneGbps] [1, 3, oneGbps] [2, 4, oneGbps] [2, 5, oneGbps] [3, 6, oneGbps] [3, 7, oneGbps] [8, 9, oneGbps] [8, 10, oneGbps] [9, 11, oneGbps] [9, 12, oneGbps] [10, 13, oneGbps] [10, 14, oneGbps] [1, 8, oneGbps] [4, 11, oneGbps] [5, 12, oneGbps] [6, 13, oneGbps] [7, 14, oneGbps]]'
+edges_matrix = [[1, 2, 1.5 * oneGbps] [1, 3, 1.5 * oneGbps] [2, 4, 1.5 * oneGbps] [2, 5, 1.5 * oneGbps] [3, 6, 1.5 * oneGbps] [3, 7, 1.5 * oneGbps] [8, 9, 1.5 * oneGbps] [8, 10, 1.5 * oneGbps] [9, 11, 1.5 * oneGbps] [9, 12, 1.5 * oneGbps] [10, 13, 1.5 * oneGbps] [10, 14, 1.5 * oneGbps] [1, 8, 1.5 * oneGbps] [4, 11, 1.5 * oneGbps] [5, 12, 1.5 * oneGbps] [6, 13, 1.5 * oneGbps] [7, 14, 1.5 * oneGbps]]'
 traffic_matrix = Float64[[1, 7, halfGbps] [2, 6, halfGbps] [6, 4, halfGbps] [7, 5, halfGbps] [4, 5, halfGbps] [8, 14, halfGbps] [9, 13, halfGbps] [13, 11, halfGbps] [14, 12, halfGbps] [11, 12, halfGbps] [2, 9, halfGbps] [10, 2, halfGbps]]'
 traffic_matrix[:, 3] .*= traffic_scaling
 
@@ -208,36 +218,42 @@ push!(topologies, Topology("double_tree-connected", nodes_matrix, edges_matrix, 
 # 2-9 for demand 2-9, 3-10 for demand 10-2). Symmetric demands for the two
 # graphs, plus a few crossing the trees (unchanged from 11). First tree rooted
 # at 1, second at 8.
-nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"] [7, "G"] [8, "H"] [9, "I"] [10, "J"] [11, "K"] [12, "L"] [13, "M"] [14, "N"]], [2, 1])
-edges_matrix = [[1, 2, 10 * oneGbps] [1, 3, 5 * oneGbps] [2, 4, oneGbps] [2, 5, 10 * oneGbps] [3, 6, .05 * oneGbps] [3, 7, oneGbps] [8, 9, 10 * oneGbps] [8, 10, 5 * oneGbps] [9, 11, oneGbps] [9, 12, 10 * oneGbps] [10, 13, 5 * oneGbps] [10, 14, oneGbps] [1, 8, 10 * oneGbps] [4, 11, 5 * oneGbps] [5, 12, oneGbps] [6, 13, 10 * oneGbps] [7, 14, 5 * oneGbps]]'
-traffic_matrix = Float64[[1, 7, 5 * halfGbps] [2, 6, halfGbps] [6, 4, 5.2 * halfGbps] [7, 5, halfGbps] [4, 5, .5 * halfGbps] [8, 14, halfGbps] [9, 13, 5 * halfGbps] [13, 11, halfGbps] [14, 12, 5 * halfGbps] [11, 12, halfGbps] [2, 9, 5 * halfGbps] [10, 2, halfGbps]]'
-traffic_matrix[:, 3] .*= traffic_scaling
+if INCLUDE_OVERLOADED_TOPOLOGIES
+    nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"] [7, "G"] [8, "H"] [9, "I"] [10, "J"] [11, "K"] [12, "L"] [13, "M"] [14, "N"]], [2, 1])
+    edges_matrix = [[1, 2, 10 * oneGbps] [1, 3, 5 * oneGbps] [2, 4, oneGbps] [2, 5, 10 * oneGbps] [3, 6, .05 * oneGbps] [3, 7, oneGbps] [8, 9, 10 * oneGbps] [8, 10, 5 * oneGbps] [9, 11, oneGbps] [9, 12, 10 * oneGbps] [10, 13, 5 * oneGbps] [10, 14, oneGbps] [1, 8, 10 * oneGbps] [4, 11, 5 * oneGbps] [5, 12, oneGbps] [6, 13, 10 * oneGbps] [7, 14, 5 * oneGbps]]'
+    traffic_matrix = Float64[[1, 7, 5 * halfGbps] [2, 6, halfGbps] [6, 4, 5.2 * halfGbps] [7, 5, halfGbps] [4, 5, .5 * halfGbps] [8, 14, halfGbps] [9, 13, 5 * halfGbps] [13, 11, halfGbps] [14, 12, 5 * halfGbps] [11, 12, halfGbps] [2, 9, 5 * halfGbps] [10, 2, halfGbps]]'
+    traffic_matrix[:, 3] .*= traffic_scaling
 
-push!(topologies, Topology("double_tree-connected-various", nodes_matrix, edges_matrix, traffic_matrix))
-
-# Variant. Two trees, full binary, depth of 3. The corresponding nodes are
-# connected (a few edges do not exist, the ones that correspond to demands:
-# 2-9 for demand 2-9, 3-10 for demand 10-2). Symmetric demands for the two
-# graphs, plus a few crossing the trees (unchanged from 11). First tree rooted
-# at 1, second at 8. Much lower capacities than usual.
-nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"] [7, "G"] [8, "H"] [9, "I"] [10, "J"] [11, "K"] [12, "L"] [13, "M"] [14, "N"]], [2, 1])
-edges_matrix = [[1, 2, 10 * oneGbps] [1, 3, 5 * oneGbps] [2, 4, oneGbps] [2, 5, 10 * oneGbps] [3, 6, .005 * oneGbps] [3, 7, oneGbps] [8, 9, 10 * oneGbps] [8, 10, 5 * oneGbps] [9, 11, oneGbps] [9, 12, 10 * oneGbps] [10, 13, 5 * oneGbps] [10, 14, oneGbps] [1, 8, 10 * oneGbps] [4, 11, 5 * oneGbps] [5, 12, oneGbps] [6, 13, 10 * oneGbps] [7, 14, 5 * oneGbps]]'
-traffic_matrix = Float64[[1, 7, 5 * halfGbps] [2, 6, halfGbps] [6, 4, 5.2 * halfGbps] [7, 5, halfGbps] [4, 5, .5 * halfGbps] [8, 14, halfGbps] [9, 13, 5 * halfGbps] [13, 11, halfGbps] [14, 12, 5 * halfGbps] [11, 12, halfGbps] [2, 9, 5 * halfGbps] [10, 2, halfGbps]]'
-traffic_matrix[:, 3] .*= traffic_scaling
-
-push!(topologies, Topology("double_tree-connected-various_very_low", nodes_matrix, edges_matrix, traffic_matrix))
+    push!(topologies, Topology("double_tree-connected-various", nodes_matrix, edges_matrix, traffic_matrix))
+end
 
 # Variant. Two trees, full binary, depth of 3. The corresponding nodes are
 # connected (a few edges do not exist, the ones that correspond to demands:
 # 2-9 for demand 2-9, 3-10 for demand 10-2). Symmetric demands for the two
 # graphs, plus a few crossing the trees (unchanged from 11). First tree rooted
 # at 1, second at 8. Much lower capacities than usual.
-nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"] [7, "G"] [8, "H"] [9, "I"] [10, "J"] [11, "K"] [12, "L"] [13, "M"] [14, "N"]], [2, 1])
-edges_matrix = [[1, 2, 10 * oneGbps] [1, 3, 5 * oneGbps] [2, 4, oneGbps] [2, 5, 10 * oneGbps] [3, 6, .0005 * oneGbps] [3, 7, oneGbps] [8, 9, 10 * oneGbps] [8, 10, 5 * oneGbps] [9, 11, oneGbps] [9, 12, 10 * oneGbps] [10, 13, 5 * oneGbps] [10, 14, oneGbps] [1, 8, 10 * oneGbps] [4, 11, 5 * oneGbps] [5, 12, oneGbps] [6, 13, 10 * oneGbps] [7, 14, 5 * oneGbps]]'
-traffic_matrix = Float64[[1, 7, 5 * halfGbps] [2, 6, halfGbps] [6, 4, 5.2 * halfGbps] [7, 5, halfGbps] [4, 5, .5 * halfGbps] [8, 14, halfGbps] [9, 13, 5 * halfGbps] [13, 11, halfGbps] [14, 12, 5 * halfGbps] [11, 12, halfGbps] [2, 9, 5 * halfGbps] [10, 2, halfGbps]]'
-traffic_matrix[:, 3] .*= traffic_scaling
+if INCLUDE_OVERLOADED_TOPOLOGIES
+    nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"] [7, "G"] [8, "H"] [9, "I"] [10, "J"] [11, "K"] [12, "L"] [13, "M"] [14, "N"]], [2, 1])
+    edges_matrix = [[1, 2, 10 * oneGbps] [1, 3, 5 * oneGbps] [2, 4, oneGbps] [2, 5, 10 * oneGbps] [3, 6, .005 * oneGbps] [3, 7, oneGbps] [8, 9, 10 * oneGbps] [8, 10, 5 * oneGbps] [9, 11, oneGbps] [9, 12, 10 * oneGbps] [10, 13, 5 * oneGbps] [10, 14, oneGbps] [1, 8, 10 * oneGbps] [4, 11, 5 * oneGbps] [5, 12, oneGbps] [6, 13, 10 * oneGbps] [7, 14, 5 * oneGbps]]'
+    traffic_matrix = Float64[[1, 7, 5 * halfGbps] [2, 6, halfGbps] [6, 4, 5.2 * halfGbps] [7, 5, halfGbps] [4, 5, .5 * halfGbps] [8, 14, halfGbps] [9, 13, 5 * halfGbps] [13, 11, halfGbps] [14, 12, 5 * halfGbps] [11, 12, halfGbps] [2, 9, 5 * halfGbps] [10, 2, halfGbps]]'
+    traffic_matrix[:, 3] .*= traffic_scaling
 
-push!(topologies, Topology("double_tree-connected-various_very_very_low", nodes_matrix, edges_matrix, traffic_matrix))
+    push!(topologies, Topology("double_tree-connected-various_very_low", nodes_matrix, edges_matrix, traffic_matrix))
+end
+
+# Variant. Two trees, full binary, depth of 3. The corresponding nodes are
+# connected (a few edges do not exist, the ones that correspond to demands:
+# 2-9 for demand 2-9, 3-10 for demand 10-2). Symmetric demands for the two
+# graphs, plus a few crossing the trees (unchanged from 11). First tree rooted
+# at 1, second at 8. Much lower capacities than usual.
+if INCLUDE_OVERLOADED_TOPOLOGIES
+    nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"] [7, "G"] [8, "H"] [9, "I"] [10, "J"] [11, "K"] [12, "L"] [13, "M"] [14, "N"]], [2, 1])
+    edges_matrix = [[1, 2, 10 * oneGbps] [1, 3, 5 * oneGbps] [2, 4, oneGbps] [2, 5, 10 * oneGbps] [3, 6, .0005 * oneGbps] [3, 7, oneGbps] [8, 9, 10 * oneGbps] [8, 10, 5 * oneGbps] [9, 11, oneGbps] [9, 12, 10 * oneGbps] [10, 13, 5 * oneGbps] [10, 14, oneGbps] [1, 8, 10 * oneGbps] [4, 11, 5 * oneGbps] [5, 12, oneGbps] [6, 13, 10 * oneGbps] [7, 14, 5 * oneGbps]]'
+    traffic_matrix = Float64[[1, 7, 5 * halfGbps] [2, 6, halfGbps] [6, 4, 5.2 * halfGbps] [7, 5, halfGbps] [4, 5, .5 * halfGbps] [8, 14, halfGbps] [9, 13, 5 * halfGbps] [13, 11, halfGbps] [14, 12, 5 * halfGbps] [11, 12, halfGbps] [2, 9, 5 * halfGbps] [10, 2, halfGbps]]'
+    traffic_matrix[:, 3] .*= traffic_scaling
+
+    push!(topologies, Topology("double_tree-connected-various_very_very_low", nodes_matrix, edges_matrix, traffic_matrix))
+end
 
 ## Clique of 6 nodes.
 nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"]], [2, 1])
@@ -296,7 +312,7 @@ push!(topologies, Topology("double_star-connected", nodes_matrix, edges_matrix, 
 ## Grid of 12 nodes.
 # 3 rows and 4 columns. Edges along rows or columns (no diagonals).
 nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"] [7, "G"] [8, "H"] [9, "I"] [10, "J"] [11, "K"] [12, "L"]], [2, 1])
-edges_matrix = [[1, 2, oneGbps] [2, 3, oneGbps] [3, 4, oneGbps] [1, 5, oneGbps] [5, 6, oneGbps] [6, 7, oneGbps] [7, 8, oneGbps] [2, 6, oneGbps] [3, 7, oneGbps] [4, 8, oneGbps] [5, 9, oneGbps] [9, 10, oneGbps] [10, 11, oneGbps] [11, 12, oneGbps] [6, 10, oneGbps] [7, 11, oneGbps] [8, 12, oneGbps]]'
+edges_matrix = [[1, 2, 1.5 * oneGbps] [2, 3, 1.5 * oneGbps] [3, 4, 1.5 * oneGbps] [1, 5, 1.5 * oneGbps] [5, 6, 1.5 * oneGbps] [6, 7, 1.5 * oneGbps] [7, 8, 1.5 * oneGbps] [2, 6, 1.5 * oneGbps] [3, 7, 1.5 * oneGbps] [4, 8, 1.5 * oneGbps] [5, 9, 1.5 * oneGbps] [9, 10, 1.5 * oneGbps] [10, 11, 1.5 * oneGbps] [11, 12, 1.5 * oneGbps] [6, 10, 1.5 * oneGbps] [7, 11, 1.5 * oneGbps] [8, 12, 1.5 * oneGbps]]'
 traffic_matrix = Float64[[1, 3, halfGbps] [2, 6, halfGbps] [6, 4, halfGbps] [1, 5, halfGbps] [4, 5, halfGbps] [7, 9, halfGbps] [8, 12, halfGbps] [12, 10, halfGbps] [7, 11, halfGbps] [10, 11, halfGbps] [1, 7, halfGbps] [2, 8, halfGbps] [9, 3, halfGbps] [10, 4, halfGbps]]'
 traffic_matrix[:, 3] .*= traffic_scaling
 

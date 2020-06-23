@@ -77,8 +77,8 @@ function _debug_infeasibility_mmf(rd::RoutingData, ::KleinrockLoad,
                         Automatic(), NoUncertaintyHandling(), NoUncertainty())
     if compute_max_load(r) >= 0.99999
         return "This network cannot withstand this traffic matrix: " *
-               "its maximum load is 100% (i.e. the most loaded link is loaded " *
-               "at 100%, when minimising this maximum load). " *
+               "its maximum load is 100% or more (i.e. the most loaded link is " *
+               "loaded at 100%, when minimising this maximum load). " *
                "Kleinrock function associates an infinite penalty to links " *
                "with such a high load."
     end

@@ -91,11 +91,12 @@ to be the most likely case.
   * `routings`: the various routings generated during the execution. There must
     be a routing per iteration.
   * `master_model`: the final optimisation model, with all generated cuts and
-    columns. Solving it should give the same solution as `routings[end]`. 
+    columns. Solving it should give the same solution as `routings[end]`.
 """
 struct RoutingSolution
     # TODO: how to map the matrices to the iteration they have been generated at?
-    # TODO: time per iteration?
+    # TODO: time per iteration? Replace the time_* by vectors? 
+    # TODO: exporting all this information may require quite some time (especially building the Routing objects). Way to disable it?
     data::RoutingData
     n_iter::Int
     n_matrices::Int

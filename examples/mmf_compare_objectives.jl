@@ -15,7 +15,8 @@ using PrettyTables
 using CPLEX, LightGraphs
 opt = CPLEX.Optimizer
 
-ftopologies = [t for t in topologies if ! (t.name in ["att", "abilene"])]
+ftopologies = [t for t in topologies if ! (t.name in ["att", "abilene", "basic"])]
+ε = 1.0e-3
 
 objs = [Load(), KleinrockLoad(), FortzThorupLoad(), AlphaFairness(0.5)]#, AlphaFairness(1.5), AlphaFairness(2.0)]
 table = Matrix{Any}(undef, 2 * length(ftopologies), 2 + length(objs))
@@ -30,9 +31,9 @@ for (i, t) in enumerate(ftopologies)
         println("  -> $(obj)")
 
         if typeof(obj) != AlphaFairness
-            mt = ModelType(obj, MinMaxFair())
+            mt = ModelType(obj, MinMaxFair(ε))
         else
-            mt = ModelType(obj, MaxMinFair())
+            mt = ModelType(obj, MaxMinFair(ε))
         end
 
         rd = RoutingData(g, k, opt, mt, name=t.name, traffic_matrix=dm)

@@ -95,11 +95,11 @@ to be the most likely case.
 """
 struct RoutingSolution
     # TODO: how to map the matrices to the iteration they have been generated at?
-    # TODO: time per iteration? Replace the time_* by vectors? 
+    # TODO: time per iteration? Replace the time_* by vectors?
     # TODO: exporting all this information may require quite some time (especially building the Routing objects). Way to disable it?
     data::RoutingData
     n_iter::Int
-    n_matrices::Int
+    n_matrices::Int # TODO: don't have this as a field if a list of matrices is given when building the object.
     n_cuts::Int
     n_columns::Int
 

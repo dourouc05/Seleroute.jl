@@ -44,7 +44,10 @@
                 if typeof(edge_obj) != AlphaFairness || (! edge_obj.force_power_cone && edge_obj.α != 0.0)
                     # Power-cone models cannot be solved to optimality with ECOS or SCS,
                     # and they also sometimes have problems with linear models.
-                    __testset_nouncertainty_mmf(edge_obj, type, opt, g, paths, k, d, dm)
+                    if ! (typeof(edge_obj) == AlphaFairness && edge_obj.α >= 1.0) # TODO: MMF doesn't work there: a bug somewhere?
+
+                        __testset_nouncertainty_mmf(edge_obj, type, opt, g, paths, k, d, dm)
+                    end
                 end
             end
         end

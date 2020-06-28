@@ -32,7 +32,7 @@
             end
 
             n_paths = (cg ? 1 : 5) # Only two paths for each demand, force column generation to generate a new one.
-            mt = ModelType(Load, MinimumMaximum, type, cg, algo, ObliviousUncertainty, UncertainDemand)
+            mt = ModelType(Load(), MinimumMaximum(), type(), cg, algo(), ObliviousUncertainty(), UncertainDemand())
             rd = RoutingData(g, k, opt, mt, npaths=n_paths, model_exact_opt_d=compute_opt_d, logmessage=(x)->nothing)
             r = compute_routing(rd)
 

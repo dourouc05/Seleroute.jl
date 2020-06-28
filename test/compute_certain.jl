@@ -75,7 +75,14 @@ function __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
     @testset "Objective aggregation: maximum minimum" begin
         mt = ModelType(edge_obj, MaximumMinimum(), type, false, Automatic(), NoUncertaintyHandling(), NoUncertainty())
         rd = RoutingData(g, k, opt, mt, traffic_matrix=dm)
-        r = compute_routing(rd)
+
+        r = nothing
+        if typeof(edge_obj) in [KleinrockLoad, FortzThorupLoad]
+            msg = "The objective function $(edge_obj) does not support maximisation. Proceed with caution."
+            @test_logs (:warn, msg) r = compute_routing(rd)
+        else
+            @test_nowarn r = compute_routing(rd)
+        end
 
         __testset_nouncertainty_shared(r, rd, dm)
 
@@ -84,9 +91,9 @@ function __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
             @test status == MOI.OPTIMAL
             @test r.objectives[1] ≈ 0.571428 atol=1.0e-5
         elseif edge_obj == KleinrockLoad()
-            @test status in [MOI.DUAL_INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED]
+            @test status in [MOI.DUAL_INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED, MOI.SLOW_PROGRESS]
         elseif edge_obj == FortzThorupLoad()
-            @test status in [MOI.DUAL_INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED]
+            @test status in [MOI.DUAL_INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED, MOI.SLOW_PROGRESS]
         elseif typeof(edge_obj) == AlphaFairness && edge_obj.α == 0.0
             # Exactly as if optimising the load! Except that the power-cone model
             # may pose numerical problems.
@@ -105,8 +112,10 @@ function __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
         elseif typeof(edge_obj) == AlphaFairness && edge_obj.α == 1.5
             @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
             if status == MOI.OPTIMAL
-                # Neither SCS nor ECOS can find the optimum (but CPLEX does).
-                @test r.objectives[1] ≈ -1.322875 atol=1.0e-5
+                # Neither SCS nor ECOS can find the optimum.
+                # CPLEX (SOCP): -1.322875
+                # Mosek (SOCP and POW): -2.645751
+                @test r.objectives[1] ≈ -2.645751 atol=1.0e-5
             end
         elseif typeof(edge_obj) == AlphaFairness && edge_obj.α == 2.0
             @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]

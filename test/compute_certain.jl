@@ -40,10 +40,10 @@ function __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
         elseif edge_obj == FortzThorupLoad()
             @test status == MOI.OPTIMAL
             @test r.objectives[1] ≈ 1.047619 atol=1.0e-5
-        elseif edge_obj == Load()
+        elseif typeof(edge_obj) == AlphaFairness && edge_obj.α == 0.0
             @test status == MOI.OPTIMAL
             @test r.objectives[1] ≈ 0.571428 atol=1.0e-5
-        elseif typeof(edge_obj) == AlphaFairness && edge_obj.α in [0.0, 0.5, 1.0, 1.5, 2.0]
+        elseif typeof(edge_obj) == AlphaFairness && edge_obj.α in [0.5, 1.0, 1.5, 2.0]
             # Minimising the total fairness, which is usually nonsensical
             # (hence no objective value check).
             @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
@@ -206,12 +206,6 @@ function __testset_nouncertainty_mintot(edge_obj, type, opt, g, paths, k, d, dm)
             @test length(r.routings[1].demands) == ne(k) # Number of demands
             @test r.routings[1].demands[1] == d
             @test length(r.routings[1].paths) in [2, 3] # Number of paths
-            for p in [[Edge(1, 4)], [Edge(1, 2), Edge(2, 4)]]
-                @test p in r.routings[1].paths
-            end
-            if length(r.routings[1].paths) >= 3
-                @test [Edge(1, 3), Edge(3, 4)] in r.routings[1].paths
-            end
             @test length(r.routings[1].path_flows) == ne(k) # Number of demands
             @test length(r.routings[1].path_flows[d]) in [2, 3] # Number of paths
             @test length(r.routings[1].edge_flows) == ne(k) # Number of demands

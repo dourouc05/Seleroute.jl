@@ -29,28 +29,30 @@ function __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
         end
 
         __testset_nouncertainty_shared(r, rd, dm)
+
+        status = termination_status(r.master_model.model)
         if edge_obj == Load()
-            @test termination_status(r.master_model.model) == MOI.OPTIMAL
+            @test status == MOI.OPTIMAL
             @test r.objectives[1] ≈ 0.571428 atol=1.0e-5
         elseif edge_obj == KleinrockLoad()
-            @test termination_status(r.master_model.model) == MOI.OPTIMAL
+            @test status == MOI.OPTIMAL
             @test r.objectives[1] ≈ 1.333333 atol=1.0e-5
         elseif edge_obj == FortzThorupLoad()
-            @test termination_status(r.master_model.model) == MOI.OPTIMAL
+            @test status == MOI.OPTIMAL
             @test r.objectives[1] ≈ 1.047619 atol=1.0e-5
         elseif edge_obj == Load()
-            @test termination_status(r.master_model.model) == MOI.OPTIMAL
+            @test status == MOI.OPTIMAL
             @test r.objectives[1] ≈ 0.571428 atol=1.0e-5
         elseif typeof(edge_obj) == AlphaFairness && edge_obj.α in [0.0, 0.5, 1.0, 1.5, 2.0]
             # Minimising the total fairness, which is usually nonsensical
             # (hence no objective value check).
-            @test termination_status(r.master_model.model) in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+            @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
         else
             println(r.objectives)
             @test_broken true == false
         end
 
-        if termination_status(r.master_model.model) == MOI.OPTIMAL
+        if status == MOI.OPTIMAL
             # Don't perform these tests for MOI.ALMOST_OPTIMAL: most constraint
             # are respected, but the sum over all paths may be "slightly" off
             # (1.05, for instance).
@@ -76,37 +78,39 @@ function __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
         r = compute_routing(rd)
 
         __testset_nouncertainty_shared(r, rd, dm)
+
+        status = termination_status(r.master_model.model)
         if edge_obj == Load()
-            @test termination_status(r.master_model.model) == MOI.OPTIMAL
+            @test status == MOI.OPTIMAL
             @test r.objectives[1] ≈ 0.571428 atol=1.0e-5
         elseif edge_obj == KleinrockLoad()
-            @test termination_status(r.master_model.model) in [MOI.DUAL_INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED]
+            @test status in [MOI.DUAL_INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED]
         elseif edge_obj == FortzThorupLoad()
-            @test termination_status(r.master_model.model) in [MOI.DUAL_INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED]
+            @test status in [MOI.DUAL_INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED]
         elseif typeof(edge_obj) == AlphaFairness && edge_obj.α == 0.0
             # Exactly as if optimising the load! Except that the power-cone model
             # may pose numerical problems.
-            @test termination_status(r.master_model.model) in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
-            if termination_status(r.master_model.model) == MOI.OPTIMAL
+            @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+            if status == MOI.OPTIMAL
                 @test r.objectives[1] ≈ 0.571428 atol=1.0e-5
             end
         elseif typeof(edge_obj) == AlphaFairness && edge_obj.α == 0.5
-            @test termination_status(r.master_model.model) in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
-            if termination_status(r.master_model.model) == MOI.OPTIMAL
+            @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+            if status == MOI.OPTIMAL
                 @test r.objectives[1] ≈ 1.511857 atol=1.0e-5
             end
         elseif typeof(edge_obj) == AlphaFairness && edge_obj.α == 1.0
-            @test termination_status(r.master_model.model) == MOI.OPTIMAL
+            @test status == MOI.OPTIMAL
             @test r.objectives[1] ≈ -0.559636 atol=1.0e-4 # Looks like there are slight variations betweens flows and paths.
         elseif typeof(edge_obj) == AlphaFairness && edge_obj.α == 1.5
-            @test termination_status(r.master_model.model) in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
-            if termination_status(r.master_model.model) == MOI.OPTIMAL
+            @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+            if status == MOI.OPTIMAL
                 # Neither SCS nor ECOS can find the optimum (but CPLEX does).
                 @test r.objectives[1] ≈ -1.322875 atol=1.0e-5
             end
         elseif typeof(edge_obj) == AlphaFairness && edge_obj.α == 2.0
-            @test termination_status(r.master_model.model) in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
-            if termination_status(r.master_model.model) == MOI.OPTIMAL
+            @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+            if status == MOI.OPTIMAL
                 @test r.objectives[1] ≈ -1.749999 atol=1.0e-5
             end
         else
@@ -114,7 +118,7 @@ function __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
             @test_broken true == false
         end
 
-        if termination_status(r.master_model.model) == MOI.OPTIMAL
+        if status == MOI.OPTIMAL
             # Don't perform these tests for MOI.ALMOST_OPTIMAL: most constraint
             # are respected, but the sum over all paths may be "slightly" off
             # (1.05, for instance).
@@ -150,30 +154,32 @@ function __testset_nouncertainty_mintot(edge_obj, type, opt, g, paths, k, d, dm)
         @test r !== nothing
 
         __testset_nouncertainty_shared(r, rd, dm)
+
+        status = termination_status(r.master_model.model)
         if edge_obj == Load() || (typeof(edge_obj) == AlphaFairness && edge_obj.α == 0.0)
-            @test termination_status(r.master_model.model) in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
-            if termination_status(r.master_model.model) == MOI.OPTIMAL
+            @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+            if status == MOI.OPTIMAL
                 @test r.objectives[1] ≈ 2.0 atol=1.0e-5
             end
         elseif edge_obj == KleinrockLoad()
-            @test termination_status(r.master_model.model) in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
-            if termination_status(r.master_model.model) == MOI.OPTIMAL
+            @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+            if status == MOI.OPTIMAL
                 @test r.objectives[1] ≈ 5.952135 atol=1.0e-5
             end
         elseif edge_obj == FortzThorupLoad()
-            @test termination_status(r.master_model.model) in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
-            if termination_status(r.master_model.model) == MOI.OPTIMAL
+            @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+            if status == MOI.OPTIMAL
                 @test r.objectives[1] ≈ 4.666666 atol=1.0e-5
             end
         elseif typeof(edge_obj) == AlphaFairness && edge_obj.α == 0.5
-            @test termination_status(r.master_model.model) in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
-            if termination_status(r.master_model.model) == MOI.OPTIMAL
+            @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+            if status == MOI.OPTIMAL
                 @test r.objectives[1] ≈ 0.000000 atol=1.0e-5
             end
         elseif typeof(edge_obj) == AlphaFairness && edge_obj.α in [0.5, 1.0, 1.5, 2.0]
             # Minimising the total fairness, which is usually nonsensical.
-            @test termination_status(r.master_model.model) in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
-            if termination_status(r.master_model.model) == MOI.OPTIMAL
+            @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+            if status == MOI.OPTIMAL
                 @test r.objectives[1] <= -1000.0
             end
         else
@@ -181,7 +187,7 @@ function __testset_nouncertainty_mintot(edge_obj, type, opt, g, paths, k, d, dm)
             @test_broken true == false
         end
 
-        if termination_status(r.master_model.model) == MOI.OPTIMAL
+        if status == MOI.OPTIMAL
             # Don't perform these tests for MOI.ALMOST_OPTIMAL: most constraint
             # are respected, but the sum over all paths may be "slightly" off
             # (1.05, for instance).
@@ -210,8 +216,6 @@ function __testset_nouncertainty_mintot(edge_obj, type, opt, g, paths, k, d, dm)
         rd = RoutingData(g, k, opt, mt, traffic_matrix=dm)
         r = nothing
 
-        println("=============")
-        println(edge_obj)
         if typeof(edge_obj) != AlphaFairness && typeof(edge_obj) != Load
             msg = "The objective function $(edge_obj) does not support maximisation. Proceed with caution."
             @test_logs (:warn, msg) r = compute_routing(rd)

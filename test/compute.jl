@@ -26,7 +26,7 @@
     @testset "Formulation type: $type" for type in [FlowFormulation(), PathFormulation()]
         @testset "Edge-wise objective: $edge_obj" for edge_obj in [
                 Load(), KleinrockLoad(), FortzThorupLoad(),
-                AlphaFairness(0.0, false), AlphaFairness(0.0, true),
+                AlphaFairness(0.0),
                 AlphaFairness(0.5, false), AlphaFairness(0.5, true),
                 AlphaFairness(1.0),
                 AlphaFairness(1.5, true), AlphaFairness(1.5, false),
@@ -37,6 +37,7 @@
                 if typeof(edge_obj) == AlphaFairness && edge_obj.force_power_cone
                     opt = opt_scs
                 end
+                # opt = Mosek.Optimizer
 
                 __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
                 __testset_nouncertainty_mintot(edge_obj, type, opt, g, paths, k, d, dm)

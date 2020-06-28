@@ -19,7 +19,8 @@ struct KleinrockLoad <: EdgeWiseObjectiveFunction end
 struct FortzThorupLoad <: EdgeWiseObjectiveFunction end
 
 supports_min(::Union{Load, KleinrockLoad, FortzThorupLoad}) = true
-supports_max(::Union{Load, KleinrockLoad, FortzThorupLoad}) = true
+supports_max(::Load) = true
+supports_max(::Union{KleinrockLoad, FortzThorupLoad}) = false
 
 struct AlphaFairness <: EdgeWiseObjectiveFunction
     α::Float64
@@ -28,10 +29,15 @@ struct AlphaFairness <: EdgeWiseObjectiveFunction
     AlphaFairness() = new(1.0, false)
     AlphaFairness(α::Float64) = new(α, false)
     function AlphaFairness(α::Float64, force_power_cone::Bool)
-        special_cases = [0.0, 0.5, 1.5, 2.0] # Linear (0.0) or SOCP-representable.
+        special_cases = [0.5, 1.5, 2.0] # Easily SOCP-representable.
         if ! (α in special_cases) && force_power_cone
             @warn "The power-cone formulation is forced to be used, " *
                   "but it is the only available one for α = $(α). " *
+                  "The parameter `force_power_cone` is therefore ignored."
+        end
+        if α == 0.0 && force_power_cone
+            @warn "The power-cone formulation is forced to be used, " *
+                  "but it is not available for α = $(α). " *
                   "The parameter `force_power_cone` is therefore ignored."
         end
         return new(α, force_power_cone)

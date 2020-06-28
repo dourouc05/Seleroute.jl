@@ -205,61 +205,86 @@ function __testset_nouncertainty_mintot(edge_obj, type, opt, g, paths, k, d, dm)
         end
     end
 
-    # @testset "Objective aggregation: maximum total" begin
-    #     mt = ModelType(edge_obj, MaximumTotal(), type, false, Automatic(), NoUncertaintyHandling(), NoUncertainty())
-    #     rd = RoutingData(g, k, opt, mt, traffic_matrix=dm)
-    #     r = compute_routing(rd)
-    #
-    #     # __testset_nouncertainty_shared(r, rd, dm)
-    #     # if edge_obj == Load() || (typeof(edge_obj) == AlphaFairness && edge_obj.α == 0.0)
-    #     #     @test termination_status(r.master_model.model) in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
-    #     #     if termination_status(r.master_model.model) == MOI.OPTIMAL
-    #     #         @test r.objectives[1] ≈ 2.0 atol=1.0e-5
-    #     #     end
-    #     # elseif edge_obj == KleinrockLoad()
-    #     #     @test termination_status(r.master_model.model) in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
-    #     #     if termination_status(r.master_model.model) == MOI.OPTIMAL
-    #     #         @test r.objectives[1] ≈ 5.952135 atol=1.0e-5
-    #     #     end
-    #     # elseif edge_obj == FortzThorupLoad()
-    #     #     @test termination_status(r.master_model.model) in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
-    #     #     if termination_status(r.master_model.model) == MOI.OPTIMAL
-    #     #         @test r.objectives[1] ≈ 4.666666 atol=1.0e-5
-    #     #     end
-    #     # elseif typeof(edge_obj) == AlphaFairness && edge_obj.α in [0.5, 1.0, 1.5, 2.0]
-    #     #     # Minimising the total fairness, which is usually nonsensical.
-    #     #     @test termination_status(r.master_model.model) in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
-    #     #     if termination_status(r.master_model.model) == MOI.OPTIMAL
-    #     #         @test r.objectives[1] <= -1000.0
-    #     #     end
-    #     # else
-    #     #     println(r.objectives)
-    #     #     @test_broken true == false
-    #     # end
-    #     #
-    #     # if termination_status(r.master_model.model) == MOI.OPTIMAL
-    #     #     # Don't perform these tests for MOI.ALMOST_OPTIMAL: most constraint
-    #     #     # are respected, but the sum over all paths may be "slightly" off
-    #     #     # (1.05, for instance).
-    #     #
-    #     #     # This solution only uses two paths out of three, i.e. three edges out of five.
-    #     #     @test r.routings[1].data == rd
-    #     #     @test length(r.routings[1].demands) == ne(k) # Number of demands
-    #     #     @test r.routings[1].demands[1] == d
-    #     #     @test length(r.routings[1].paths) in [2, 3] # Number of paths
-    #     #     for p in [[Edge(1, 4)], [Edge(1, 2), Edge(2, 4)]]
-    #     #         @test p in r.routings[1].paths
-    #     #     end
-    #     #     if length(r.routings[1].paths) >= 3
-    #     #         @test [Edge(1, 3), Edge(3, 4)] in r.routings[1].paths
-    #     #     end
-    #     #     @test length(r.routings[1].path_flows) == ne(k) # Number of demands
-    #     #     @test length(r.routings[1].path_flows[d]) in [2, 3] # Number of paths
-    #     #     @test length(r.routings[1].edge_flows) == ne(k) # Number of demands
-    #     #     @test length(r.routings[1].edge_flows[d]) in [3, 4, 5] # Number of edges
-    #     #     @test sum(x for x in values(r.routings[1].path_flows[d])) ≈ 1.0 atol=1.0e-3
-    #     # end
-    # end
+    @testset "Objective aggregation: maximum total" begin
+        mt = ModelType(edge_obj, MaximumTotal(), type, false, Automatic(), NoUncertaintyHandling(), NoUncertainty())
+        rd = RoutingData(g, k, opt, mt, traffic_matrix=dm)
+        r = nothing
+
+        println("=============")
+        println(edge_obj)
+        if typeof(edge_obj) != AlphaFairness && typeof(edge_obj) != Load
+            msg = "The objective function $(edge_obj) does not support maximisation. Proceed with caution."
+            @test_logs (:warn, msg) r = compute_routing(rd)
+        else
+            @test_nowarn r = compute_routing(rd)
+        end
+
+        __testset_nouncertainty_shared(r, rd, dm)
+
+        status = termination_status(r.master_model.model)
+        if edge_obj == Load()
+            @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+            if status == MOI.OPTIMAL
+                @test r.objectives[1] ≈ 4.0 atol=1.0e-5
+            end
+        elseif edge_obj == KleinrockLoad() || edge_obj == FortzThorupLoad()
+            # Maximising these objective functions does not really make sense.
+            @test status in [MOI.INFEASIBLE_OR_UNBOUNDED, MOI.DUAL_INFEASIBLE]
+        elseif typeof(edge_obj) == AlphaFairness && edge_obj.α == 0.0
+            @test status == MOI.OPTIMAL
+            @test r.objectives[1] ≈ 4.0 atol=1.0e-5
+        elseif typeof(edge_obj) == AlphaFairness && edge_obj.α == 0.5
+            if ! edge_obj.force_power_cone || (edge_obj.force_power_cone && status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL])
+                # SCS incorrectly determines this problem is unbounded with
+                # the power-cone formulation, but Mosek sees no problem
+                # and yields the same solution as for the SOCP formulation.
+                @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+                if status == MOI.OPTIMAL
+                    @test r.objectives[1] ≈ 8.326663 atol=1.0e-5
+                end
+            else
+                @test_broken status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+                @test_broken r.objectives[1] ≈ 8.326663 atol=1.0e-5
+            end
+        elseif typeof(edge_obj) == AlphaFairness && edge_obj.α == 1.0
+            @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+            if status == MOI.OPTIMAL
+                @test r.objectives[1] ≈ -2.214 atol=1.0e-3
+                # Mosek: -2.214330
+                # ECOS: -2.214426.
+            end
+        elseif typeof(edge_obj) == AlphaFairness && edge_obj.α == 1.5
+            @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+            if status == MOI.OPTIMAL
+                @test r.objectives[1] ≈ -12.696022 atol=1.0e-5
+            end
+        elseif typeof(edge_obj) == AlphaFairness && edge_obj.α == 2.0
+            @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
+            if status == MOI.OPTIMAL
+                @test r.objectives[1] ≈ -8.214101 atol=1.0e-5
+            end
+        else
+            println(r.objectives)
+            @test_broken true == false
+        end
+
+        if status == MOI.OPTIMAL
+            # Don't perform these tests for MOI.ALMOST_OPTIMAL: most constraint
+            # are respected, but the sum over all paths may be "slightly" off
+            # (1.05, for instance).
+
+            # This solution only uses two paths out of three, i.e. three edges out of five.
+            @test r.routings[1].data == rd
+            @test length(r.routings[1].demands) == ne(k) # Number of demands
+            @test r.routings[1].demands[1] == d
+            @test length(r.routings[1].paths) in [2, 3] # Number of paths
+            @test length(r.routings[1].path_flows) == ne(k) # Number of demands
+            @test length(r.routings[1].path_flows[d]) in [2, 3] # Number of paths
+            @test length(r.routings[1].edge_flows) == ne(k) # Number of demands
+            @test length(r.routings[1].edge_flows[d]) in [3, 4, 5] # Number of edges
+            @test sum(x for x in values(r.routings[1].path_flows[d])) ≈ 1.0 atol=1.0e-3
+        end
+    end
 end
 
 function __testset_nouncertainty_mmf(edge_obj, type, opt, g, paths, k, d, dm)

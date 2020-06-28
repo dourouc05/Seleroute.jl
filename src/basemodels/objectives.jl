@@ -62,10 +62,10 @@ function objective_edge_expression(rm::RoutingModel, edge_obj::AlphaFairness, e:
     @assert edge_obj.α >= 0
 
     # Α-fairness can be quite low, but bound it below to avoid unboundedness in the tests.
-    alphafairness = @variable(rm.model, base_name="alphafairness[$e]", lower_bound=-2.0e4)
+    alphafairness = @variable(rm.model, base_name="alphafairness[$e]", lower_bound=-2.0e4) # TODO: set the lower/upper bounds separately for each type of objective?
     load_e = objective_edge_expression(rm, Load(), e, dm)
 
-    c = if α == 0.0 && ! edge_obj.force_power_cone
+    c = if α == 0.0
         # Very simple case, actually linear (it can even be minimised):
         #     af == load
         @constraint(rm.model, load_e == alphafairness)
@@ -96,7 +96,7 @@ function objective_edge_expression(rm::RoutingModel, edge_obj::AlphaFairness, e:
         c = @constraint(rm.model, [1/2, load_e, phi] in RotatedSecondOrderCone())
         set_name(c, "alphafairness_phi[$(e)]")
 
-        @constraint(rm.model, [- alphafairness, phi, sqrt(2)] in RotatedSecondOrderCone())
+        @constraint(rm.model, [- alphafairness, phi, 2] in RotatedSecondOrderCone())
     elseif α == 2.0 && ! edge_obj.force_power_cone
         # Another very specific case:
         #     af ≤ -1 / load
@@ -109,11 +109,12 @@ function objective_edge_expression(rm::RoutingModel, edge_obj::AlphaFairness, e:
         set_name(c, "alphafairness_phi[$(e)]")
 
         @constraint(rm.model, alphafairness <= - phi)
-    elseif α < 1.0
+    elseif α < 1.0 && α > 0.0
         # Generic case: 0.0 < α < 1.0.
         #     af ≤ load^(1-α) / (1 - α),     with α < 1, i.e. 1 - α > 0
         #   ⟺ af ≤ load^(1-α) × 1^α / (1 - α)
         #   ⟺ (1 - α) × af ≤ load^(1-α) × 1^α
+        # Caution: with α = 0, this is not a power cone!
         @constraint(rm.model, alphafairness >= 0)
         @constraint(rm.model, [load_e, 1, alphafairness * (1 - α)] in MOI.PowerCone(1.0 - α))
     else
@@ -126,9 +127,13 @@ function objective_edge_expression(rm::RoutingModel, edge_obj::AlphaFairness, e:
         #   ⟺ 1 / (1 - α)^α ≤ load^(α-1)/α × 1^(1/α)
         neg_af = @variable(rm.model, lower_bound=0.0)
         set_name(neg_af, "alphafairness_neg[$(e)]")
+
         c = @constraint(rm.model, alphafairness == -neg_af)
         set_name(c, "alphafairness_neg[$(e)]")
-        @constraint(rm.model, [1.0 / (α - 1)^α, load_e, neg_af] in MOI.PowerCone((α - 1.0) / α))
+
+        β = α - 1 # > 0
+        @constraint(rm.model, [neg_af, load_e, (1.0 / β) ^ (1.0 / (1.0 + β))] in MOI.PowerCone(1.0 / (1.0 + β)))
+        # @constraint(rm.model, [1.0 / (α - 1)^α, load_e, neg_af] in MOI.PowerCone((α - 1.0) / α))
     end
 
     set_name(c, "alphafairness[$(e)]")

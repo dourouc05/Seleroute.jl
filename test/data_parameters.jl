@@ -56,7 +56,7 @@ add_edge!(k_unreachable, 1, 3)
     end
 end
 
-@testset "Data: parameters" begin
+@testset "Data: parameters for ModelType" begin
     @testset "Undirected graph" begin
         mt = ModelType(Load(), MinimumTotal(), PathFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
         @test_throws ErrorException RoutingData(copy(ug), copy(k), ECOS.Optimizer, mt)
@@ -73,6 +73,23 @@ end
         mt = ModelType(Load(), MinimumTotal(), PathFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
         @test_throws ErrorException RoutingData(copy(g_unreachable), copy(k), ECOS.Optimizer, mt, output_folder="/42/84/bullshit/")
         @test_throws ErrorException RoutingData(copy(g), copy(k_unreachable), ECOS.Optimizer, mt, output_folder="/42/84/bullshit/")
+    end
+
+    @testset "Objective functions: support_min/max" begin
+        @test supports_min(Load())
+        @test supports_max(Load())
+
+        @test supports_min(KleinrockLoad())
+        @test ! supports_max(KleinrockLoad())
+
+        @test supports_min(FortzThorupLoad())
+        @test ! supports_max(FortzThorupLoad())
+
+        @test supports_min(AlphaFairness(0.0))
+        @test supports_max(AlphaFairness(0.0))
+
+        @test supports_min(AlphaFairness(0.5))
+        @test supports_max(AlphaFairness(0.5))
     end
 
     @testset "Parameter compatibility" begin

@@ -27,8 +27,7 @@ struct AlphaFairness <: EdgeWiseObjectiveFunction
     force_power_cone::Bool # When there is a choice between a SOCP-based and a power-cone-based formulation, use the latter.
 
     AlphaFairness() = new(1.0, false)
-    AlphaFairness(α::Float64) = new(α, false)
-    function AlphaFairness(α::Float64, force_power_cone::Bool)
+    function AlphaFairness(α::Float64, force_power_cone::Bool=false)
         if force_power_cone
             if α == 0.0
                 @warn "The power-cone formulation is forced to be used, " *

@@ -58,19 +58,19 @@ end
 
 @testset "Data: parameters" begin
     @testset "Undirected graph" begin
-        mt = ModelType(Load, MinimumTotal, PathFormulation, false, CuttingPlane, ObliviousUncertainty, UncertainDemand)
+        mt = ModelType(Load(), MinimumTotal(), PathFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
         @test_throws ErrorException RoutingData(copy(ug), copy(k), ECOS.Optimizer, mt)
         @test_throws ErrorException RoutingData(copy(g), copy(uk), ECOS.Optimizer, mt)
         @test_throws ErrorException RoutingData(copy(ug), copy(uk), ECOS.Optimizer, mt)
     end
 
     @testset "Inexisting folder" begin
-        mt = ModelType(Load, MinimumTotal, PathFormulation, false, CuttingPlane, ObliviousUncertainty, UncertainDemand)
+        mt = ModelType(Load(), MinimumTotal(), PathFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
         @test_throws ErrorException RoutingData(copy(g), copy(k), ECOS.Optimizer, mt, output_folder="/42/84/bullshit/")
     end
 
     @testset "Unsatisfiable or unreachable parts" begin
-        mt = ModelType(Load, MinimumTotal, PathFormulation, false, CuttingPlane, ObliviousUncertainty, UncertainDemand)
+        mt = ModelType(Load(), MinimumTotal(), PathFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
         @test_throws ErrorException RoutingData(copy(g_unreachable), copy(k), ECOS.Optimizer, mt, output_folder="/42/84/bullshit/")
         @test_throws ErrorException RoutingData(copy(g), copy(k_unreachable), ECOS.Optimizer, mt, output_folder="/42/84/bullshit/")
     end
@@ -162,11 +162,17 @@ end
 
                                         # Successes.
                                         elseif edge_obj == AlphaFairness
-                                            for α in [0.25, 1.0]
+                                            for α in [0.0, 0.25, 1.0]
                                                 for pc in [true, false]
                                                     mt = nothing
 
-                                                    if α in [0.25, 1.0] && pc
+                                                    if pc && α == 0.0
+                                                        # Warn when forcing the use of a power cone when there is not available.
+                                                        msg = "The power-cone formulation is forced to be used, " *
+                                                              "but it is not available for α = $(α). " *
+                                                              "The parameter `force_power_cone` is therefore ignored."
+                                                        @test_logs (:warn, msg) mt = ModelType(AlphaFairness(α, pc), agg_obj(), type(), cg, algo(), unc(), uncparams())
+                                                    elseif pc && ! (α in [0.5, 1.5, 2.0])
                                                         # Warn when forcing the use of a power cone when there is nothing else available.
                                                         msg = "The power-cone formulation is forced to be used, " *
                                                               "but it is the only available one for α = $(α). " *

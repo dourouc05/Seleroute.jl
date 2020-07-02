@@ -296,24 +296,24 @@ end
 
 function __testset_nouncertainty_mmf(edge_obj, type, opt, g, paths, k, d, dm)
     @testset "Objective aggregation: min-max fair" begin
-        mt = ModelType(edge_obj, MinMaxFair(1.0), type, false, Automatic(), NoUncertaintyHandling(), NoUncertainty())
-        rd = RoutingData(g, k, opt, mt, traffic_matrix=dm)
+        mt = ModelType(edge_obj, MinMaxFair(0.001), type, false, Automatic(), NoUncertaintyHandling(), NoUncertainty())
+        rd = RoutingData(g, k, opt, mt, traffic_matrix=dm, logmessage=(msg)->nothing)
         r = compute_routing(rd)
 
         # Similar to __testset_nouncertainty_shared, but many things differ for
-        # MMF. Mostly, it's an iterative process;
+        # MMF. Mostly, it's an iterative process.
         @test r !== nothing
         @test r.data == rd
-        @test r.n_iter == 1
+        @test r.n_iter in [1, 2]
         @test r.n_matrices == 1
         @test r.n_cuts == 0
         @test r.n_columns == 0
         @test r.time_precompute_ms > 0.0
         @test r.time_solve_ms > 0.0
         @test r.time_export_ms == 0.0
-        @test length(r.objectives) == 1
         @test length(r.matrices) == 1
-        @test length(r.routings) == 2
+        @test length(r.routings) in [1, 2]
+        @test length(r.objectives) in [1, 2]
         @test r.master_model !== nothing
         @test r.matrices[1] == dm
 

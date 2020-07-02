@@ -1,7 +1,10 @@
 # TODO: column generation for all these functions.
 
 function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, agg_obj::Union{MinMaxFair, MaxMinFair}, type::FormulationType, cg::Val{false}, algo::Automatic, unc::NoUncertaintyHandling, uncparams::NoUncertainty)
-    # Based on https://onlinelibrary.wiley.com/doi/abs/10.1002/ett.1047.
+    # Implementation of the water-filling algorithm for MMF routings (aka MFMF).
+    # https://ica1www.epfl.ch/PS_files/LEB3132.pdf
+    # https://www.utc.fr/~dnace/recherche/Publication/Inoc03Nace.pdf
+
     start = time_ns()
 
     # Create the master problem.
@@ -58,90 +61,44 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         _export_lp_if_allowed(rd, m, "lp_$(n_iter)")
         _export_lp_if_failed(rd, status, m, "C:\\Users\\Thibaut\\.julia\\dev\\Seleroute\\examples\\" * "error_$(n_iter)", "Current problem could not be solved!")
 
-        # Report the values for this iteration. Any of these lines will fail
-        # in case of infeasibility.
+        # Report the values for this iteration. All these lines will fail in
+        # case of infeasibility.
         master_τ = objective_value(m)
         push!(routings, Routing(rd, value.(rm.routing)))
         push!(objectives, master_τ)
 
-        println("[$(n_iter)] Status: $(status). Value: $(master_τ)")
-
-        # Solve the subproblem to determine which variables should now be fixed.
-        # TODO: reuse the subproblem to avoid rebuilding it at every iteration.
+        # Check which constraints are satisfied at equality (i.e. nonzero dual
+        # value, as the constraint is either ≥ or ≤).
         new_edges = Dict{Edge{Int}, Float64}()
         for e in edges_to_do
-            # Create the subproblem.
-            s_m = Model(rd.solver)
-            set_silent(s_m)
-            s_rm = basic_routing_model_unitary(s_m, rd)
-            capacity_constraints(s_rm, rd.traffic_matrix)
-
-            # With respect to the theoretical algorithm, don't use the variable
-            # γ, directly put the expression in the objective.
-            obj = objective_edge_expression(s_rm, edge_obj, e)
-            if typeof(agg_obj) == MinMaxFair
-                @objective(s_m, Min, obj)
-            else
-                @assert typeof(agg_obj) == MaxMinFair
-                @objective(s_m, Max, obj)
-            end
-
-            # Add constraints for the previously fixed edges.
-            # Instead of equalities, to slightly expand the feasible area and
-            # avoid numerical problems, replace by inequalities.
-            for e2 in edges_done
-                e2_expr = objective_edge_expression(s_rm, edge_obj, e2)
-                if iszero(agg_obj.ε)
-                    @constraint(s_m, e2_expr == fixed_objectives[e2])
-                else
-                    @constraint(s_m, e2_expr >= fixed_objectives[e2] * (1 - agg_obj.ε))
-                    @constraint(s_m, e2_expr <= fixed_objectives[e2] * (1 + agg_obj.ε))
-                end
-            end
-
-            # Add constraints for the still unfixed edges.
-            if typeof(agg_obj) == MinMaxFair
-                for e2 in edges_to_do
-                    if e2 != e
-                        @constraint(s_m, objective_edge_expression(s_rm, edge_obj, e2) <= master_τ * (1 + agg_obj.ε))
-                    end
-                end
-            else
-                @assert typeof(agg_obj) == MaxMinFair
-
-                for e2 in edges_to_do
-                    if e2 != e
-                        @constraint(s_m, objective_edge_expression(s_rm, edge_obj, e2) >= master_τ * (1 - agg_obj.ε))
-                    end
-                end
-            end
-
-            # Solve the subproblem.
-            optimize!(s_m)
-            s_status = termination_status(s_m)
-
-            if s_status != MOI.OPTIMAL
-                println("[$(n_iter)][$e] Status: $(s_status).")
-            end
-
-            # Export if needed.
-            _export_lp_if_allowed(rd, s_m, "lp_$(n_iter)_$(e)")
-            _export_lp_if_failed(rd, s_status, s_m, "C:\\Users\\Thibaut\\.julia\\dev\\Seleroute\\examples\\" * "error_$(n_iter)_$(src(e))_$(dst(e))", "Current subproblem could not be solved!")
-
-            short(x) = 0.001 * round(Int, 1000 * x)
-            println("[$(n_iter)][$e] Status: $(s_status). Value: $(short(objective_value(s_m))). Delta with master: $(short(abs(objective_value(s_m) - master_τ))).")
-
-            # Determine whether the value of the objective should be fixed.
-            if abs(objective_value(s_m) - master_τ) < agg_obj.ε # TODO: another parameter than ε?
+            if - agg_obj.ε <= dual(mmf[e]) <= agg_obj.ε
                 new_edges[e] = master_τ
-                println("[$(n_iter)][$e] => Fixed ($(length(edges_to_do)) to do, $(length(edges_done)) done)")
             end
         end
 
         if length(new_edges) == 0
-            @warn "No new variable has been fixed in this iteration, the MMF " *
-                  "iterative process is stalling. Consider using a lower " *
-                  "precision."
+            # If no edge goes through the dual variable test, check the actual
+            # values (this may be due to the way the objective function is
+            # modelled, like Fortz-Thorup).
+            for e in edges_to_do
+                if - agg_obj.ε <= value(mmf[e]) <= agg_obj.ε
+                    new_edges[e] = master_τ
+                end
+            end
+        end
+
+        rd.logmessage("[$(n_iter)] Status: $(status). Value: $(master_τ)")
+
+        if length(new_edges) == 0
+            if n_iter == 0
+                # No variable can be fixed right now, there must be a problem!
+                @warn "No variable can be fixed at the first iteration, " *
+                      "the MMF process stalls."
+            else
+                # Every link seems to be saturated, end now.
+                rd.logmessage("  All links are saturated.")
+            end
+            break
         end
 
         for (e, value) in new_edges
@@ -152,17 +109,17 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
 
             # Modify the master to indicate that the value is now known.
             set_normalized_coefficient(mmf[e], τ, 0)
-            rhs = if typeof(agg_obj) == MinMaxFair
-                fixed_objectives[e] * (1 + agg_obj.ε)
+            rhs = value * if typeof(agg_obj) == MinMaxFair
+                1 + agg_obj.ε
             else
                 @assert typeof(agg_obj) == MaxMinFair
-                fixed_objectives[e] * (1 - agg_obj.ε)
+                1 - agg_obj.ε
             end
+            rd.logmessage("  Fixing $e to $master_τ ≈ $rhs (relaxed value)")
             set_normalized_rhs(mmf[e], rhs)
         end
 
         n_iter += 1
-        println()
     end
 
     # Not necessary to optimise one last time: the remaining edges were fixed

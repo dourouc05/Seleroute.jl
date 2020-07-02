@@ -2,20 +2,20 @@
 # network operators.
 struct Topology
     name::AbstractString # Name (optional).
-    nodes::Matrix{Any} # n×2 matrix: first column is a numerical index (Int),
-    # second column si a node name.
-    edges::Matrix{Float64} # m×3 matrix: first column is the index of the edge
-    # source, second column is the index of the edge destination, third column
-    # is the capacity of this link (no unit mandated; the user is responsible
-    # for consistency).
-    traffic::Matrix{Float64} # m×3 matrix: first column is the index of the
-    # source node for this demand, second column is the index of the destination
-    # node for this demand, third column is the actual demand (no unit mandated;
-    # the user is responsible for consistency).
+    nodes::AbstractMatrix{Any} # n×2 matrix: first column is a numerical index
+    # (Int), second column is a node name.
+    edges::AbstractMatrix{Float64} # m×3 matrix: first column is the index of
+    # the edge source, second column is the index of the edge destination,
+    # third column is the capacity of this link (no unit mandated; the user is
+    # responsible for consistency).
+    traffic::AbstractMatrix{Float64} # m×3 matrix: first column is the index
+    # of the source node for this demand, second column is the index of the
+    # destination node for this demand, third column is the actual demand
+    # (no unit mandated; the user is responsible for consistency).
 end
 
-Topology(nodes::Matrix{Any}, edges::Matrix{Float64}, traffic::Matrix{Float64}) =
-    Topology("", nodes, edges, traffic)
+Topology(nodes::AbstractMatrix{Any}, edges::AbstractMatrix{Float64},
+         traffic::AbstractMatrix{Float64}) = Topology("", nodes, edges, traffic)
 
 function topology_to_graphs(t::Topology; make_network_undirected::Bool=true)
     # make_network_undirected: whether edges should be duplicated to make the

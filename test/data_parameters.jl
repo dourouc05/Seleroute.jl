@@ -88,7 +88,7 @@ end
         @test supports_min(AlphaFairness(0.0))
         @test supports_max(AlphaFairness(0.0))
 
-        @test supports_min(AlphaFairness(0.5))
+        @test ! supports_min(AlphaFairness(0.5))
         @test supports_max(AlphaFairness(0.5))
     end
 

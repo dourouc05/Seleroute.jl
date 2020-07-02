@@ -38,6 +38,7 @@
                     opt = opt_scs
                 end
                 # opt = Mosek.Optimizer
+                # opt = CPLEX.Optimizer
 
                 __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
                 __testset_nouncertainty_mintot(edge_obj, type, opt, g, paths, k, d, dm)
@@ -46,7 +47,6 @@
                     # Power-cone models cannot be solved to optimality with ECOS or SCS,
                     # and they also sometimes have problems with linear models.
                     if ! (typeof(edge_obj) == AlphaFairness && edge_obj.α >= 1.0) # TODO: MMF doesn't work there: a bug somewhere?
-
                         __testset_nouncertainty_mmf(edge_obj, type, opt, g, paths, k, d, dm)
                     end
                 end

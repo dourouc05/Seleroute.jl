@@ -20,7 +20,7 @@ struct TestEdgeWise <: EdgeWiseObjectiveFunction end
 
     @testset "Base case" begin
         m = Model(opt)
-        mt = ModelType(Load, MinimumTotal, FlowFormulation, false, CuttingPlane, ObliviousUncertainty, UncertainDemand)
+        mt = ModelType(Load(), MinimumTotal(), FlowFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
         rd = RoutingData(g, k, opt, mt)
         rm = basic_routing_model_unitary(m, rd, FlowFormulation())
 
@@ -33,7 +33,7 @@ struct TestEdgeWise <: EdgeWiseObjectiveFunction end
 
     @testset "Flow" begin
         # Only useful parameter: FlowFormulation.
-        mt = ModelType(Load, MinimumTotal, FlowFormulation, false, CuttingPlane, ObliviousUncertainty, UncertainDemand)
+        mt = ModelType(Load(), MinimumTotal(), FlowFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
         rd = RoutingData(g, k, opt, mt, traffic_matrix=dm)
 
         function __check_feasible_knowncapa_flow(rm::RoutingModel)
@@ -139,7 +139,7 @@ struct TestEdgeWise <: EdgeWiseObjectiveFunction end
 
     @testset "Path" begin
         # Only useful parameter: PathFormulation.
-        mt = ModelType(Load, MinimumTotal, PathFormulation, false, CuttingPlane, ObliviousUncertainty, UncertainDemand)
+        mt = ModelType(Load(), MinimumTotal(), PathFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
         rd = RoutingData(g, k, opt, mt, traffic_matrix=dm)
 
         function __check_feasible_knowncapa_path(rm::RoutingModel)
@@ -228,7 +228,7 @@ struct TestEdgeWise <: EdgeWiseObjectiveFunction end
     @testset "Objective terms" begin
         local_opt = ECOS.Optimizer # Support for SOCP.
 
-        mt = ModelType(Load, MinimumTotal, FlowFormulation, false, CuttingPlane, ObliviousUncertainty, UncertainDemand)
+        mt = ModelType(Load(), MinimumTotal(), FlowFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
         rd = RoutingData(g, k, local_opt, mt)
         m = Model(local_opt)
         set_silent(m)

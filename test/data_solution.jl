@@ -438,7 +438,7 @@
 
                 mat = routing_to_matrix(r)
                 for i in 1:6
-                    @test sum(m[i, :]) ≈ 1.0 atol=1.0e-5
+                    @test sum(mat[i, :]) ≈ 1.0 atol=1.0e-5
                 end
             end
         end

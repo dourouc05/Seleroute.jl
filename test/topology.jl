@@ -1,7 +1,7 @@
 @testset "Topology: topology_to_graphs" begin
     @testset "Directed" begin
         nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"]], [2, 1])
-        edges_matrix = [[1, 2, 1] [2, 3, 2] [2, 6, 2] [3, 4, 3] [3, 6, 3] [5, 6, 5]]'
+        edges_matrix = [[1, 2, 1.0] [2, 3, 2.0] [2, 6, 2.0] [3, 4, 3.0] [3, 6, 3.0] [5, 6, 5.0]]'
         traffic_matrix = [[1, 3, .5] [1, 6, .5] [4, 1, .5] [4, 5, .5] [5, 2, .5] [6, 4, .5]]'
         t = Topology(nodes_matrix, edges_matrix, traffic_matrix)
 
@@ -33,7 +33,7 @@
 
     @testset "Undirected" begin
         nodes_matrix = permutedims([[1, "A"] [2, "B"] [3, "C"] [4, "D"] [5, "E"] [6, "F"]], [2, 1])
-        edges_matrix = [[1, 2, 1] [2, 3, 2] [2, 6, 2] [3, 4, 3] [3, 6, 3] [5, 6, 5]]'
+        edges_matrix = [[1, 2, 1.0] [2, 3, 2.0] [2, 6, 2.0] [3, 4, 3.0] [3, 6, 3.0] [5, 6, 5.0]]'
         traffic_matrix = [[1, 3, .5] [1, 6, .5] [4, 1, .5] [4, 5, .5] [5, 2, .5] [6, 4, .5]]'
         t = Topology(nodes_matrix, edges_matrix, traffic_matrix)
 

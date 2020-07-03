@@ -70,16 +70,19 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         # Check which constraints are satisfied at equality (i.e. nonzero dual
         # value, as the constraint is either ≥ or ≤).
         new_edges = Dict{Edge{Int}, Float64}()
-        for e in edges_to_do
-            if - agg_obj.ε <= dual(mmf[e]) <= agg_obj.ε
-                new_edges[e] = master_τ
+
+        if has_duals(m)
+            for e in edges_to_do
+                if - agg_obj.ε <= dual(mmf[e]) <= agg_obj.ε
+                    new_edges[e] = master_τ
+                end
             end
         end
 
         if length(new_edges) == 0
             # If no edge goes through the dual variable test, check the actual
             # values (this may be due to the way the objective function is
-            # modelled, like Fortz-Thorup).
+            # modelled, like Fortz-Thorup, or if the solver doesn't give duals).
             for e in edges_to_do
                 if - agg_obj.ε <= value(mmf[e]) <= agg_obj.ε
                     new_edges[e] = master_τ

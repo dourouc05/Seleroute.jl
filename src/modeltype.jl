@@ -15,12 +15,22 @@ supports_min(::EdgeWiseObjectiveFunction) = false
 supports_max(::EdgeWiseObjectiveFunction) = false
 
 struct Load <: EdgeWiseObjectiveFunction end
-struct KleinrockLoad <: EdgeWiseObjectiveFunction end
 struct FortzThorupLoad <: EdgeWiseObjectiveFunction end
+
+struct KleinrockLoad <: EdgeWiseObjectiveFunction
+    use_nonconvex_bilinear_formulation_for_equality::Bool
+
+    KleinrockLoad(b::Bool=false) = new(b)
+
+    # Solver is supposed to be able to handle bilinear constraints!
+    # Outside generic global/MINLP solvers, there is just Gurobi to handle this:
+    #     optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => 2)
+end
 
 supports_min(::Union{Load, KleinrockLoad, FortzThorupLoad}) = true
 supports_max(::Load) = true
-supports_max(::Union{KleinrockLoad, FortzThorupLoad}) = false
+supports_max(k::KleinrockLoad) = k.use_nonconvex_bilinear_formulation
+supports_max(::FortzThorupLoad) = false
 
 struct AlphaFairness <: EdgeWiseObjectiveFunction
     α::Float64

@@ -17,19 +17,33 @@ function objective_edge_expression(rm::RoutingModel, ::Load, e::Edge, dm::Dict{E
     return total_flow_in_edge(rm, e, dm) / get_prop(rm.data.g, e, :capacity)
 end
 
-function objective_edge_expression(rm::RoutingModel, ::KleinrockLoad, e::Edge, dm::Dict{Edge{Int}, Float64})
-    # Model the function load / (1 - load). The constraint is a rotated SOCP:
-    #     load / (1 - load) ≤ kl    ⟺    (√2)² ≤ 2 (1 - load) (1 + kl)
+function objective_edge_expression(rm::RoutingModel, k::KleinrockLoad, e::Edge,
+                                   dm::Dict{Edge{Int}, Float64})
+    # Model the function load / (1 - load).
     kleinrock = @variable(rm.model, base_name="kleinrock[$e]", lower_bound=0)
 
     load_e = objective_edge_expression(rm, Load(), e, dm)
-    c = @constraint(rm.model, [1 - load_e, 1 + kleinrock, sqrt(2)] in RotatedSecondOrderCone())
+
+    # The constraint is a rotated SOCP:
+    #     load / (1 - load) ≤ kl    ⟺    (√2)² ≤ 2 (1 - load) (1 + kl)
+    c = @constraint(rm.model,
+                    [1 - load_e, 1 + kleinrock, sqrt(2)]
+                    in RotatedSecondOrderCone())
     set_name(c, "kleinrock[$(e)]")
+
+    if k.use_nonconvex_bilinear_formulation_for_equality
+        # To get the equality, also model the reversed inequality (which is
+        # nonconvex):
+        #     kl ≤ load / (1 - load)    ⟺    kl - kl ⋅ load ≤ load
+        c = @constraint(rm.model, kleinrock - load_e * kleinrock <= load_e)
+        set_name(c, "kleinrock_bilin[$(e)]")
+    end
 
     return kleinrock
 end
 
-function objective_edge_expression(rm::RoutingModel, ::FortzThorupLoad, e::Edge, dm::Dict{Edge{Int}, Float64})
+function objective_edge_expression(rm::RoutingModel, ::FortzThorupLoad, e::Edge,
+                                   dm::Dict{Edge{Int}, Float64})
     fortzthorup = @variable(rm.model, base_name="fortzthorup[$e]", lower_bound=0)
     load_e = objective_edge_expression(rm, Load(), e, dm)
 

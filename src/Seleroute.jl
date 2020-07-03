@@ -25,6 +25,12 @@ function write_LP(io, model::Model)
     MOI.write_to_file(lp_model, io)
 end
 
+function write_MOF(io, model::Model)
+    mof_model = MOF.Model(format = MOF.FORMAT_MOF)
+    MOI.copy_to(mof_model, backend(model))
+    MOI.write_to_file(mof_model, io)
+end
+
 
 # https://github.com/JuliaOpt/JuMP.jl/issues/2019
 function Base.getindex(reference_map::ReferenceMap, container::Union{Containers.DenseAxisArray, Containers.SparseAxisArray})

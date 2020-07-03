@@ -24,10 +24,13 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         @constraint(m, mmf[e in edges(rd)], objective_edge_expression(rm, edge_obj, e) >= τ)
     end
 
+    time_precompute_ms = (time_ns() - start) / 1_000_000.
+
     # Memorise the evolution of the algorithm.
     n_iter = 0
     routings = Routing[]
     objectives = Float64[]
+    times_ms = Float64[]
 
     # Iteratively solve it by removing τ constraints and fixing the values of
     # the corresponding objectives.
@@ -36,6 +39,8 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     fixed_objectives = Dict{Edge{Int}, Float64}() # Its keys must correspond to edges_done. TODO: remove edges_done.
 
     while length(edges_to_do) > 0
+        start = time_ns()
+
         # Optimise for this iteration.
         optimize!(m)
         status = termination_status(m)
@@ -99,30 +104,30 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
                       "the MMF process stalls."
             else
                 # Every link seems to be saturated, end now.
-                rd.logmessage("  All links are saturated.")
+                rd.logmessage("All links are saturated.")
             end
-            break
-        end
+        else
+            for (e, value) in new_edges
+                # Maintain the data structures.
+                fixed_objectives[e] = value
+                push!(edges_done, e)
+                pop!(edges_to_do, e)
 
-        for (e, value) in new_edges
-            # Maintain the data structures.
-            fixed_objectives[e] = value
-            push!(edges_done, e)
-            pop!(edges_to_do, e)
-
-            # Modify the master to indicate that the value is now known.
-            set_normalized_coefficient(mmf[e], τ, 0)
-            rhs = value * if typeof(agg_obj) == MinMaxFair
-                1 + agg_obj.ε
-            else
-                @assert typeof(agg_obj) == MaxMinFair
-                1 - agg_obj.ε
+                # Modify the master to indicate that the value is now known.
+                set_normalized_coefficient(mmf[e], τ, 0)
+                rhs = value * if typeof(agg_obj) == MinMaxFair
+                    1 + agg_obj.ε
+                else
+                    @assert typeof(agg_obj) == MaxMinFair
+                    1 - agg_obj.ε
+                end
+                rd.logmessage("  Fixing $e to $master_τ ≈ $rhs (relaxed value)")
+                set_normalized_rhs(mmf[e], rhs)
             end
-            rd.logmessage("  Fixing $e to $master_τ ≈ $rhs (relaxed value)")
-            set_normalized_rhs(mmf[e], rhs)
         end
 
         n_iter += 1
+        push!(times_ms, (time_ns() - start) / 1_000_000.)
     end
 
     # Not necessary to optimise one last time: the remaining edges were fixed
@@ -131,9 +136,13 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
 
     stop = time_ns()
 
-    return RoutingSolution(rd, n_iter, 1, 0, 0,
-                           rd.time_precompute_ms, (stop - start) / 1_000_000., 0.0,
-                           objectives, [rd.traffic_matrix], routings, rm)
+    return RoutingSolution(rd,
+                           time_precompute_ms=rd.time_precompute_ms + time_precompute_ms,
+                           time_solve_ms=times_ms,
+                           objectives=objectives,
+                           matrices=rd.traffic_matrix,
+                           routings=routings,
+                           master_model=rm)
 end
 
 _debug_infeasibility_mmf(::RoutingData, ::EdgeWiseObjectiveFunction,

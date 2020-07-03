@@ -58,25 +58,25 @@
                 @test r.n_cuts == 0
             end
             @test r.time_precompute_ms > 0.0
-            @test r.time_solve_ms > 0.0
-            if algo == CuttingPlane
-                @test r.time_export_ms > 0.0
-            else
-                @test algo == DualReformulation
-                @test r.time_export_ms == 0.0
-            end
+            @test r.total_time_solve_ms > 0.0
+            @test r.total_time_export_ms >= 0.0
+            @test r.total_time_ms > 0.0
             @test length(r.objectives) >= 1
             if algo == CuttingPlane
                 @test length(r.matrices) >= 1
             else
                 @test algo == DualReformulation
                 # Matrix output is disabled in this test.
+                if length(r.matrices) > 0
+                    println("=== Check me: ")
+                    println(r.matrices)
+                end
                 @test length(r.matrices) == 0
             end
             @test length(r.routings) >= 1
             @test r.master_model !== nothing
 
-            @test r.objectives[end] ≈ 1.0 atol=1.e-6
+            @test r.objectives[r.n_iter] ≈ 1.0 atol=1.e-6
         end
     end
 end

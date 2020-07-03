@@ -59,10 +59,21 @@ All information from intermediate iterations are kept within this object.
 
   * `data`: a pointer to the `RoutingData` object that was used for the
     computations.
+  * `result`: an `MOI.TerminationStatusCode` indicating the result of the
+    optimiser. This is usually `MOI.OPTIMAL`, but other codes indicate why
+    the solver stopped (`MOI.SLOW_PROGRESS`, `MOI.INFEASIBLE`, etc.).
+    This code is not supposed to be the result of the last iteration, but
+    a summary of the termination of the process: for instance, if the last
+    iteration gives an `MOI.INFEASIBLE` code at the last iteration due to
+    numerical errors, the whole process may show `MOI.SLOW_PROGRESS`.
   * `n_iter`: the number of iterations (the exact meaning of this field depends
-    on the algorithm).
+    on the algorithm). Iterations are supposed to be spent in this package,
+    improving/finding a network routing; this should not be a copy of a field
+    from the underlying solver (e.g., simplex iterations).
+    (This field is computed and not explicitly stored in the object.)
   * `n_matrices`: the number of traffic matrices added into the formulation. It
     may be equal to the number of iterations, depending on the algorithm.
+    (This field is computed and not explicitly stored in the object.)
   * `n_cuts`: the number of added constraints.
   * `n_columns`: the number of added columns, for column-generation based
     algorithms. Its value should be 0 for other algorithms.
@@ -74,50 +85,100 @@ milliseconds):
     computations. For instance, it may account for detection of loops or
     unroutable demands; for column-generation algorithms, it includes the time
     to generate the first few paths (i.e. before any pricing process can take
-    place).
-  * `time_solve_ms`: time to compute the routing.
-  * `time_export_ms`: time to export the solution and the intermediate results,
-    when requested.
+    place). This parameter takes precedence on the one from the given
+	`RoutingData` object (i.e. it may include more operations).
+  * `total_time_solve_ms`: total time spent in solving.
+    (This field is computed and not explicitly stored in the object.)
+  * `time_solve_ms`: time to compute the routing, one value per iteration.
+  * `time_intermediate_export_ms`: time to export the intermediate results,
+    when requested, one value per iteration where there is export.
+  * `time_final_export_ms`: time to export the final solution, when requested.
+  * `total_time_export_ms`: total time spent in exporting.
+    (This field is computed and not explicitly stored in the object.)
+  * `total_time_ms`: total time spent in the whole process (precomputing,
+    solving, exporting).
+    (This field is computed and not explicitly stored in the object.)
 
 The following vectors contain information about the execution of the algorithm.
 Not all vectors have as many entries as iterations, even though it is expected
 to be the most likely case.
 
-  * `objectives`: the value of the objective function that is being optimised
-    at each iteration.
-  * `matrices`: the demand matrices generated during the execution. It may
-    contain a single matrix if the algorithm does not generate new matrices
-    during its execution. There may be no such matrix at the last iteration.
+  * `objectives`: the value of the objective function that is being optimised,
+    at most one per iteration.
+  * `matrices`: the demand matrices generated during the execution, when their
+    output is requested. It may contain a single matrix if the algorithm does
+    not generate new matrices during its execution. There may be no such matrix
+    at the last iteration. There may be several matrices for some iterations.
   * `routings`: the various routings generated during the execution. There must
-    be a routing per iteration.
+    be at most one routing per iteration, except when requested.
   * `master_model`: the final optimisation model, with all generated cuts and
     columns. Solving it should give the same solution as `routings[end]`.
 """
 struct RoutingSolution
-    # TODO: how to map the matrices to the iteration they have been generated at?
-    # TODO: time per iteration? Replace the time_* by vectors?
-    # TODO: exporting all this information may require quite some time (especially building the Routing objects). Way to disable it?
     data::RoutingData
-    n_iter::Int
-    n_matrices::Int # TODO: don't have this as a field if a list of matrices is given when building the object.
+    result::MOI.TerminationStatusCode
     n_cuts::Int
     n_columns::Int
 
     time_precompute_ms::Float64
-    time_solve_ms::Float64
-    time_export_ms::Float64
+    time_solve_ms::Dict{Int, Float64}
+    time_intermediate_export_ms::Dict{Int, Float64}
+    time_final_export_ms::Float64
 
-    objectives::Vector{Float64}
-    matrices::Vector{Dict{Edge{Int}, Float64}}
-    routings::Vector{Routing}
+    objectives::Dict{Int, Float64}
+    matrices::Dict{Int, Vector{Dict{Edge{Int}, Float64}}}
+    routings::Dict{Int, Routing}
     master_model::RoutingModel
 end
 
-function CertainRoutingSolution(data::RoutingData,
-                                time_precompute_ms::Float64, time_solve_ms::Float64, time_export_ms::Float64,
-                                objective::Float64, matrix::Dict{Edge{Int}, Float64}, routing::Routing, model::RoutingModel)
-    return RoutingSolution(data, 0, 1, 0, 0, time_precompute_ms, time_solve_ms, time_export_ms,
-                           Float64[objective], Dict{Edge{Int}, Float64}[matrix], Routing[routing], model)
+function Base.getproperty(obj::RoutingSolution, sym::Symbol)
+    if sym === :n_matrices
+        return length(obj.matrices)
+    elseif sym === :n_iter
+        return length(obj.time_solve_ms)
+    elseif sym === :total_time_solve_ms
+        return sum(values(obj.time_solve_ms))
+    elseif sym === :total_time_export_ms
+        return sum(values(obj.time_intermediate_export_ms)) + obj.time_final_export_ms
+    elseif sym === :total_time_ms
+        return obj.time_precompute_ms + sum(values(obj.time_solve_ms)) + sum(values(obj.time_intermediate_export_ms)) + obj.time_final_export_ms
+    end
+    return getfield(obj, sym)
+end
+
+_parse_routingsolution_input(x::T) where T = Dict{Int, T}(1 => x)
+_parse_routingsolution_input(x::Vector{T}) where T = Dict{Int, T}(i => x[i] for i in 1:length(x))
+_parse_routingsolution_input(x::Dict{Int, T}) where T = x
+
+_parse_routingsolution_matrices(x::Dict{Edge{Int}, Float64}) = length(x) == 0 ? Dict{Int, Vector{Dict{Edge{Int}, Float64}}}() : Dict(1 => [x])
+_parse_routingsolution_matrices(x::Vector{Dict{Edge{Int}, Float64}}) = length(x) == 0 ? Dict{Int, Vector{Dict{Edge{Int}, Float64}}}() : Dict(1 => x)
+_parse_routingsolution_matrices(x::Dict{Int, Vector{Dict{Edge{Int}, Float64}}}) = x
+
+function RoutingSolution(data::RoutingData;
+                         result::MOI.TerminationStatusCode=MOI.OPTIMAL,
+                         n_cuts::Int=0,
+                         n_columns::Int=0,
+                         time_precompute_ms::Float64=0.0,
+						 time_solve_ms::Union{Float64, Vector{Float64}, Dict{Int, Float64}}=0.0,
+						 time_intermediate_export_ms::Union{Float64, Vector{Float64}, Dict{Int, Float64}}=Dict{Int, Float64}(),
+						 time_final_export_ms::Float64=0.0,
+						 objectives::Union{Float64, Vector{Float64}, Dict{Int, Float64}}=error("Missing parameter `objectives` when building a `RoutingSolution` object"),
+						 matrices::Union{Dict{Edge{Int}, Float64}, Vector{Dict{Edge{Int}, Float64}}, Dict{Int, Vector{Dict{Edge{Int}, Float64}}}}=Dict{Edge{Int}, Float64}(),
+						 routings::Union{Routing, Vector{Routing}, Dict{Int, Routing}}=error("Missing parameter `routings` when building a `RoutingSolution` object"),
+						 master_model::RoutingModel=error("Missing parameter `master_model` when building a `RoutingSolution` object")
+						)
+    return RoutingSolution(data,
+	                       result,
+						   n_cuts,
+						   n_columns,
+	                       time_precompute_ms,
+						   _parse_routingsolution_input(time_solve_ms),
+						   _parse_routingsolution_input(time_intermediate_export_ms),
+						   time_final_export_ms,
+						   _parse_routingsolution_input(objectives),
+						   _parse_routingsolution_matrices(matrices),
+						   _parse_routingsolution_input(routings),
+						   master_model)
 end
 
 function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64}; demand=nothing, ε::Float64=1.e-5)

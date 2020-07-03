@@ -29,7 +29,7 @@ end
 
 supports_min(::Union{Load, KleinrockLoad, FortzThorupLoad}) = true
 supports_max(::Load) = true
-supports_max(k::KleinrockLoad) = k.use_nonconvex_bilinear_formulation
+supports_max(k::KleinrockLoad) = k.use_nonconvex_bilinear_formulation_for_equality
 supports_max(::FortzThorupLoad) = false
 
 struct AlphaFairness <: EdgeWiseObjectiveFunction

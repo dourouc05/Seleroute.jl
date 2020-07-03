@@ -127,8 +127,6 @@ end
 # Also works with column generation.
 
 function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::FormulationType, cg::Val, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
-    start = time_ns()
-
     # Create the master problem.
     m = Model(rd.solver)
     set_silent(m)
@@ -139,14 +137,16 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
 
     objectives = Float64[]
     routings = Routing[]
-    matrices = Dict{Edge{Int}, Float64}[]
+    matrices = Dict{Int, Vector{Dict{Edge{Int}, Float64}}}()
     matrices_set = Set{Dict{Edge{Int}, Float64}}()
     it = 1
-    total_matrices = 0
     total_cuts = 0
     total_new_paths = 0
+    time_solve_ms = Float64[]
 
     while true
+        start = time_ns()
+
         # Solve the current master problem, possibly with column generation.
         result, current_routing, n_new_paths = solve_master_problem(rd, rm, rd.model_type)
         total_new_paths += n_new_paths
@@ -216,18 +216,18 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
 
         # Is there a constraint to add?
         nb_added_cuts = 0
+        matrices[it] = Dict{Edge{Int}, Float64}[]
         for matrix in interesting_matrices
             if matrix.matrix in matrices_set
                 continue
             end
             push!(matrices_set, matrix.matrix)
-            push!(matrices, matrix.matrix)
+            push!(matrices[it], matrix.matrix)
 
             # Add the matrix to the model.
             nb_added_cuts += add_traffic_matrix(rm, matrix)
         end
 
-        total_matrices += length(interesting_matrices)
         total_cuts += nb_added_cuts
 
         rd.logmessage("Considered $(length(interesting_matrices)) matri$(ifelse(length(interesting_matrices) == 1, "x", "ces")).")
@@ -238,6 +238,9 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
         rd.logmessage("Added $(nb_added_cuts) more constraint$(ifelse(nb_added_cuts == 1, "", "s")), going on!")
         rd.logmessage("Added $(n_new_paths) more path$(ifelse(n_new_paths == 1, "", "s")) for the master problem!")
         rd.logmessage("Added $(n_new_paths_this_iter) more path$(ifelse(n_new_paths_this_iter == 1, "", "s")) for the subproblems!")
+
+        # Record the time for this iteration.
+        push!(time_solve_ms, (time_ns() - start) / 1_000_000.)
 
         # If needed, plot the results. Don't plot for the last iteration,
         # as this is automatically performed (the whole solution is always
@@ -251,8 +254,6 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
         it += 1
     end
 
-    stop = time_ns()
-
     # Do the final round of plotting.
     rd.logmessage("== DBG == Starting to plot the results...")
     # plot(rd, routings[end], basename="$(rd.output_folder)/graph_final")
@@ -261,9 +262,15 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
     rd.logmessage("== DBG == Exporting the solution...")
     # export_routing(rd, routings[end], filename="$(rd.output_folder)/oblivious_routing.txt")
 
-    exported = time_ns()
+    # exported = time_ns()
 
-    return RoutingSolution(rd, it, total_matrices, total_cuts, total_new_paths,
-                           rd.time_precompute_ms, (stop - start) / 1_000_000., (exported - stop) / 1_000_000.,
-                           objectives, matrices, routings, rm)
+    return RoutingSolution(rd,
+                           n_cuts=total_cuts,
+                           n_columns=total_new_paths,
+                           time_precompute_ms=rd.time_precompute_ms,
+                           time_solve_ms=time_solve_ms,
+                           objectives=objectives,
+                           matrices=matrices,
+                           routings=routings,
+                           master_model=rm)
 end

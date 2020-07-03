@@ -1,18 +1,19 @@
 function __testset_nouncertainty_shared(r::RoutingSolution, rd::RoutingData, dm)
     @test r !== nothing
     @test r.data == rd
-    @test r.n_iter == 0
+    @test r.n_iter == 1
     @test r.n_matrices == 1
     @test r.n_cuts == 0
     @test r.n_columns == 0
     @test r.time_precompute_ms > 0.0
-    @test r.time_solve_ms > 0.0
-    @test r.time_export_ms == 0.0
+    @test r.total_time_solve_ms > 0.0
+    @test r.total_time_export_ms == 0.0
+    @test r.total_time_ms > 0.0
     @test length(r.objectives) == 1
     @test length(r.matrices) == 1
     @test length(r.routings) == 1
     @test r.master_model !== nothing
-    @test r.matrices[1] == dm
+    @test r.matrices[1][1] == dm
 end
 
 function __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
@@ -347,13 +348,14 @@ function __testset_nouncertainty_mmf(edge_obj, type, opt, g, paths, k, d, dm)
         @test r.n_cuts == 0
         @test r.n_columns == 0
         @test r.time_precompute_ms > 0.0
-        @test r.time_solve_ms > 0.0
-        @test r.time_export_ms == 0.0
+        @test r.total_time_solve_ms > 0.0
+        @test r.total_time_export_ms == 0.0
+        @test r.total_time_ms > 0.0
         @test length(r.matrices) == 1
         @test length(r.routings) in [1, 2]
         @test length(r.objectives) in [1, 2]
         @test r.master_model !== nothing
-        @test r.matrices[1] == dm
+        @test r.matrices[1][1] == dm
 
         @test r.routings[1].data == rd
         @test length(r.routings[1].demands) == ne(k) # Number of demands

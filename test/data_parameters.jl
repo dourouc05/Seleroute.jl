@@ -38,25 +38,23 @@ add_edge!(k_unreachable, 1, 3)
 
 @testset "Data: helpers" begin
     @testset "remove_unreachable_nodes!" begin
-        @test ne(g_unreachable) == 2
-        @test nv(g_unreachable) == 4
-        @test remove_unreachable_nodes!(copy(g_unreachable)) == 1
-        @test ne(g_unreachable) == 2
-        @test nv(g_unreachable) == 4
+        g_ = copy(g_unreachable)
+        @test remove_unreachable_nodes!(g_) == 1
+        @test ne(g_) == 2
+        @test nv(g_) == 3
     end
 
     @testset "remove_unsatisfiable_demands!" begin
-        @test ne(g_unreachable) == 2
-        @test nv(g_unreachable) == 4
-        @test ne(k_unreachable) == 1
-        @test remove_unsatisfiable_demands!(copy(g_unreachable), copy(k_unreachable)) == 1
-        @test ne(g_unreachable) == 2
-        @test nv(g_unreachable) == 4
-        @test ne(k_unreachable) == 1
+        g_ = copy(g_unreachable)
+        k_ = copy(k_unreachable)
+        @test remove_unsatisfiable_demands!(g_, k_) == 1
+        @test ne(g_) == 2
+        @test nv(g_) == 4
+        @test ne(k_) == 0
     end
 end
 
-@testset "Data: parameters for ModelType" begin
+@testset "Data: parameters for RoutingData" begin
     @testset "Undirected graph" begin
         mt = ModelType(Load(), MinimumTotal(), PathFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
         @test_throws ErrorException RoutingData(copy(ug), copy(k), ECOS.Optimizer, mt)
@@ -71,10 +69,17 @@ end
 
     @testset "Unsatisfiable or unreachable parts" begin
         mt = ModelType(Load(), MinimumTotal(), PathFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
-        @test_throws ErrorException RoutingData(copy(g_unreachable), copy(k), ECOS.Optimizer, mt, output_folder="/42/84/bullshit/")
-        @test_throws ErrorException RoutingData(copy(g), copy(k_unreachable), ECOS.Optimizer, mt, output_folder="/42/84/bullshit/")
-    end
 
+        tmp = AbstractString[]
+        lm = (x) -> push!(tmp, x)
+        RoutingData(copy(g_unreachable), copy(k), ECOS.Optimizer, mt, verbose=true, logmessage=lm)
+        @test length(tmp) == 2
+        @test tmp[1] == "Removed 1 vertices because they were not reachable."
+        @test tmp[2] == "Removed 1 demands because they were not routable."
+    end
+end
+
+@testset "Data: parameters for ModelType" begin
     @testset "Objective functions: support_min/max" begin
         @test supports_min(Load())
         @test supports_max(Load())

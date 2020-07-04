@@ -293,15 +293,17 @@ function remove_unreachable_nodes!(g::AbstractGraph)
 end
 
 function remove_unsatisfiable_demands!(g::AbstractGraph, k::AbstractGraph)
-    nremoved = 0
+    to_remove = Edge{Int}[]
     for e in edges(k)
         paths = dijkstra_shortest_paths(g, src(e), weights(g))
-        if paths.parents[dst(e)] == 0
-            rem_edge!(k, e)
-            nremoved += 1
+        if length(paths.parents) < dst(e) || paths.parents[dst(e)] == 0
+            push!(to_remove, e)
         end
     end
-    return nremoved
+    for e in to_remove
+        rem_edge!(k, e)
+    end
+    return length(to_remove)
 end
 
 graph(rd::RoutingData) = rd.g

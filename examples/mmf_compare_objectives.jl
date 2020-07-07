@@ -11,14 +11,17 @@
 
 include("topologies.jl")
 
-using PrettyTables
-using CPLEX, LightGraphs
-opt = CPLEX.Optimizer
+using PrettyTables, LightGraphs
+using JuMP, CPLEX, Gurobi, Mosek, MosekTools
+
+# opt = CPLEX.Optimizer
+opt = optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => 2)
+# opt = Mosek.Optimizer
 
 ftopologies = [t for t in topologies if ! (t.name in ["att", "abilene", "basic"])]
-ε = 1.0e-3
+ε = 1.0e-8
 
-objs = [Load(), KleinrockLoad(), FortzThorupLoad(), AlphaFairness(0.5)]#, AlphaFairness(1.5), AlphaFairness(2.0)]
+objs = [Load(), KleinrockLoad(true), FortzThorupLoad()]#, AlphaFairness(0.5)]#, AlphaFairness(1.0)]#, AlphaFairness(1.5), AlphaFairness(2.0)]
 table = Matrix{Any}(undef, 2 * length(ftopologies), 2 + length(objs))
 for (i, t) in enumerate(ftopologies)
     println("=> $(t.name)")
@@ -39,7 +42,7 @@ for (i, t) in enumerate(ftopologies)
         rd = RoutingData(g, k, opt, mt, name=t.name, traffic_matrix=dm)
         sol = compute_routing(rd)
 
-        r = sol.routings[end]
+        r = sol.routings[sol.n_iter]
         push!(loads, compute_max_load(r))
         push!(n_paths, length(r.paths))
     end

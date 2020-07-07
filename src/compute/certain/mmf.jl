@@ -9,7 +9,7 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
 
     # Create the master problem.
     m = Model(rd.solver)
-    set_silent(m)
+    set_silent(m) # TODO: add a parameter for this. And also a helper method to create the solver?
     rm = basic_routing_model_unitary(m, rd)
     capacity_constraints(rm, rd.traffic_matrix)
 
@@ -35,8 +35,9 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     # Iteratively solve it by removing τ constraints and fixing the values of
     # the corresponding objectives.
     edges_to_do = Set(edges(rd))
-    edges_done = Set{Edge{Int}}()
-    fixed_objectives = Dict{Edge{Int}, Float64}() # Its keys must correspond to edges_done. TODO: remove edges_done.
+    fixed_objectives = Dict{Edge{Int}, Float64}()
+
+    end_status = MOI.OPTIMAL
 
     while length(edges_to_do) > 0
         start = time_ns()
@@ -44,31 +45,42 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         # Optimise for this iteration.
         optimize!(m)
         status = termination_status(m)
+        _export_lp_if_allowed(rd, m, "lp_$(n_iter)")
 
+        # Handle abnormal cases.
         if status != MOI.OPTIMAL
             # OPTIMAL status is shown with the objective value.
             rd.logmessage("[$(n_iter)] Status: $(status).")
-        end
 
-        # Debug infeasibility if need be.
-        if status == MOI.INFEASIBLE
-            rd.logmessage("This iteration of MMF yielded an infeasible optimisation program. ")
-            d = _debug_infeasibility_mmf(rd, edge_obj, agg_obj, type, cg, algo, unc, uncparams)
-            if d !== nothing
-                rd.logmessage("The source of infeasibility could be automaticall detected: ")
-                rd.logmessage(d)
-            else
-                rd.logmessage("The source of infeasibility could not be automatically detected.")
+            # Debug infeasibility at the first round.
+            if status in [MOI.INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED] && n_iter == 0
+                rd.logmessage("[$(n_iter)] This iteration of MMF yielded an infeasible optimisation program. ")
+                d = _debug_infeasibility_mmf(rd, edge_obj, agg_obj, type, cg, algo, unc, uncparams)
+                if d !== nothing
+                    rd.logmessage("[$(n_iter)] The source of infeasibility could be automatically detected: ")
+                    rd.logmessage("[$(n_iter)] $d")
+                else
+                    rd.logmessage("[$(n_iter)] The source of infeasibility could not be automatically detected.")
+                end
+
+                # Exit with an error.
+                _export_lp_if_failed(rd, status, m, "error_$(n_iter)", "Current problem could not be solved!")
             end
+
+            # Report other problematic codes.
+            if status in [MOI.INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED] && n_iter > 0
+                end_status = MOI.ALMOST_OPTIMAL
+                break
+            end
+            # if status != MOI.OPTIMAL && end_status == MOI.OPTIMAL
+            #     end_status = status
+            #     break
+            # end
         end
 
-        # Export if needed.
-        _export_lp_if_allowed(rd, m, "lp_$(n_iter)")
-        _export_lp_if_failed(rd, status, m, "C:\\Users\\Thibaut\\.julia\\dev\\Seleroute\\examples\\" * "error_$(n_iter)", "Current problem could not be solved!")
-
-        # Report the values for this iteration. All these lines will fail in
-        # case of infeasibility.
+        # Report the values for this iteration.
         master_τ = objective_value(m)
+        rd.logmessage("[$(n_iter)] Status: $(status). Value: $(master_τ)")
         push!(routings, Routing(rd, value.(rm.routing)))
         push!(objectives, master_τ)
 
@@ -95,8 +107,9 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
             end
         end
 
-        rd.logmessage("[$(n_iter)] Status: $(status). Value: $(master_τ)")
+        rd.logmessage("  Number of variables to fix: $(length(new_edges)).")
 
+        # Debugging when no edge met the conditions.
         if length(new_edges) == 0
             if n_iter == 0
                 # No variable can be fixed right now, there must be a problem!
@@ -104,39 +117,46 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
                       "the MMF process stalls."
             else
                 # Every link seems to be saturated, end now.
-                rd.logmessage("All links are saturated.")
-            end
-        else
-            for (e, value) in new_edges
-                # Maintain the data structures.
-                fixed_objectives[e] = value
-                push!(edges_done, e)
-                pop!(edges_to_do, e)
-
-                # Modify the master to indicate that the value is now known.
-                set_normalized_coefficient(mmf[e], τ, 0)
-                rhs = value * if typeof(agg_obj) == MinMaxFair
-                    1 + agg_obj.ε
-                else
-                    @assert typeof(agg_obj) == MaxMinFair
-                    1 - agg_obj.ε
-                end
-                rd.logmessage("  Fixing $e to $master_τ ≈ $rhs (relaxed value)")
-                set_normalized_rhs(mmf[e], rhs)
+                rd.logmessage("[$(n_iter)] All links are saturated.")
             end
         end
 
+        # Add the new constraints for the next iteration.
+        for (e, value) in new_edges
+            # Maintain the data structures.
+            fixed_objectives[e] = value
+            pop!(edges_to_do, e)
+
+            # Modify the master to indicate that the value is now known.
+            set_normalized_coefficient(mmf[e], τ, 0)
+            rhs = value * if typeof(agg_obj) == MinMaxFair
+                1 + agg_obj.ε
+            else
+                @assert typeof(agg_obj) == MaxMinFair
+                1 - agg_obj.ε
+            end
+            rd.logmessage("  Fixing $e to $master_τ ≈ $rhs (relaxed value)")
+            set_normalized_rhs(mmf[e], rhs)
+        end
+
+        rd.logmessage("  Edges not yet saturated: $(length(edges_to_do)). Total edges saturated: $(length(fixed_objectives))")
+
+        # Log a few things at the end of the iteration. Stop if no new edge was
+        # found.
         n_iter += 1
         push!(times_ms, (time_ns() - start) / 1_000_000.)
+
+        if length(new_edges) == 0
+            # The user is already warned.
+            break
+        end
     end
 
     # Not necessary to optimise one last time: the remaining edges were fixed
     # to the current value in the master (i.e. the last iteration just added
     # redundant constraints).
 
-    stop = time_ns()
-
-    return RoutingSolution(rd,
+    return RoutingSolution(rd, result=end_status,
                            time_precompute_ms=rd.time_precompute_ms + time_precompute_ms,
                            time_solve_ms=times_ms,
                            objectives=objectives,

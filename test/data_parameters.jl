@@ -74,8 +74,8 @@ end
         lm = (x) -> push!(tmp, x)
         RoutingData(copy(g_unreachable), copy(k), ECOS.Optimizer, mt, verbose=true, logmessage=lm)
         @test length(tmp) == 2
-        @test tmp[1] == "Removed 1 vertices because they were not reachable."
-        @test tmp[2] == "Removed 1 demands because they were not routable."
+        @test "Removed 1 vertices because they were not reachable." in tmp
+        @test "Removed 1 demands because they were not routable." in tmp
     end
 end
 

@@ -170,6 +170,7 @@ of each other):
 The exact algorithm used to solve the instance is based on those seven parameters.
 """
 struct ModelType
+    # TODO: integer vs. continuous flows? 
     edge_obj::EdgeWiseObjectiveFunction
     agg_obj::AggregationObjectiveFunction
     type::FormulationType

@@ -26,11 +26,6 @@
 
     @testset "$type$(cg ? " with column generation" : "")" for (type, cg) in [(FlowFormulation, false), (PathFormulation, false), (PathFormulation, true)]
         @testset "$algo (with OPT_D computation: $compute_opt_d)" for (algo, compute_opt_d) in [(CuttingPlane, false), (CuttingPlane, true), (DualReformulation, false)]
-            if cg && algo == DualReformulation
-                # Not yet implemented.
-                continue
-            end
-
             n_paths = (cg ? 1 : 5) # Only two paths for each demand, force column generation to generate a new one.
             mt = ModelType(Load(), MinimumMaximum(), type(), cg, algo(), ObliviousUncertainty(), UncertainDemand())
             rd = RoutingData(g, k, opt, mt, npaths=n_paths, model_exact_opt_d=compute_opt_d, logmessage=(x)->nothing)
@@ -38,7 +33,7 @@
 
             @test r !== nothing
             @test r.data == rd
-            @test r.n_iter > 0
+            @test r.n_iter >= 0
             if algo == CuttingPlane
                 @test r.n_matrices >= 1
             else
@@ -47,7 +42,7 @@
                 @test r.n_matrices == 0
             end
             if cg
-                @test r.n_columns > 0
+                @test r.n_columns >= 0
             else
                 @test r.n_columns == 0
             end

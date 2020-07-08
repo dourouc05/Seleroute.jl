@@ -43,16 +43,20 @@ function master_formulation(rd::RoutingData, ::PathFormulation)
         end
 
         # Relate the main decision variables to the uncertainty sets.
-        let dv = (rd.model_robust_reformulation_traffic_matrices ? dual_beta : dual)
-            rhs = sum(dv[e, e2] * get_prop(rd.g, e2, :capacity) for e2 in edges(rd))
+        let dual_var = (rd.model_robust_reformulation_traffic_matrices ? dual_beta : dual)
+            rhs = sum(dual_var[e, e2] * get_prop(rd.g, e2, :capacity) for e2 in edges(rd))
             rhs /= get_prop(rd.g, e, :capacity)
             @constraint(m, rhs <= mu)
         end
     end
 
     if rd.model_robust_reformulation_traffic_matrices
-        return RoutingModel(rd, m, UnitaryFlows, mu, rm.routing, dual_alpha=dual_alpha, dual_beta=dual_beta)
+        return RoutingModel(rd, m, UnitaryFlows, mu, rm.routing,
+                            dual_alpha=dual_alpha, dual_beta=dual_beta,
+                            constraints_uncertainty_set=dual_constraints,
+                            constraints_convexity=rm.constraints_convexity)
     else
-        return RoutingModel(rd, m, UnitaryFlows, mu, rm.routing, dual=dual)
+        return RoutingModel(rd, m, UnitaryFlows, mu, rm.routing, dual=dual,
+                            constraints_convexity=rm.constraints_convexity)
     end
 end

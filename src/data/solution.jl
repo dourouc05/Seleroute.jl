@@ -87,6 +87,10 @@ milliseconds):
     to generate the first few paths (i.e. before any pricing process can take
     place). This parameter takes precedence on the one from the given
 	`RoutingData` object (i.e. it may include more operations).
+  * `time_create_master_model_ms`: time to create the mathematical formulation
+    of the master problem (or the only problem, if the algorithm is not
+	iterative). In particular, this does not include instanciation of
+	subproblems.
   * `total_time_solve_ms`: total time spent in solving.
     (This field is computed and not explicitly stored in the object.)
   * `time_solve_ms`: time to compute the routing, one value per iteration.
@@ -121,6 +125,7 @@ struct RoutingSolution
     n_columns::Int
 
     time_precompute_ms::Float64
+	time_create_master_model_ms::Float64
     time_solve_ms::Dict{Int, Float64}
     time_intermediate_export_ms::Dict{Int, Float64}
     time_final_export_ms::Float64
@@ -141,7 +146,7 @@ function Base.getproperty(obj::RoutingSolution, sym::Symbol)
     elseif sym === :total_time_export_ms
         return sum(values(obj.time_intermediate_export_ms)) + obj.time_final_export_ms
     elseif sym === :total_time_ms
-        return obj.time_precompute_ms + sum(values(obj.time_solve_ms)) + sum(values(obj.time_intermediate_export_ms)) + obj.time_final_export_ms
+        return obj.time_precompute_ms + obj.time_create_master_model_ms + sum(values(obj.time_solve_ms)) + sum(values(obj.time_intermediate_export_ms)) + obj.time_final_export_ms
     end
     return getfield(obj, sym)
 end
@@ -159,6 +164,7 @@ function RoutingSolution(data::RoutingData;
                          n_cuts::Int=0,
                          n_columns::Int=0,
                          time_precompute_ms::Float64=0.0,
+						 time_create_master_model_ms::Float64=0.0,
 						 time_solve_ms::Union{Float64, Vector{Float64}, Dict{Int, Float64}}=0.0,
 						 time_intermediate_export_ms::Union{Float64, Vector{Float64}, Dict{Int, Float64}}=Dict{Int, Float64}(),
 						 time_final_export_ms::Float64=0.0,
@@ -172,6 +178,7 @@ function RoutingSolution(data::RoutingData;
 						   n_cuts,
 						   n_columns,
 	                       time_precompute_ms,
+						   time_create_master_model_ms,
 						   _parse_routingsolution_input(time_solve_ms),
 						   _parse_routingsolution_input(time_intermediate_export_ms),
 						   time_final_export_ms,

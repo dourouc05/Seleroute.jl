@@ -16,12 +16,16 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::Formulatio
     # Constraints.
     mu_capacity_constraints(rm, rd.traffic_matrix)
 
-    # Done!
+    time_create_master_model_ms = (time_ns() - start) / 1_000_000.
+
+    # Solve the problem.
+    start = time_ns()
     optimize!(m)
     stop = time_ns()
 
     return RoutingSolution(rd,
                            time_precompute_ms=rd.time_precompute_ms,
+                           time_create_master_model_ms=time_create_master_model_ms,
                            time_solve_ms=(stop - start) / 1_000_000.,
                            objectives=objective_value(m),
                            matrices=rd.traffic_matrix,

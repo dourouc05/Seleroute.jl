@@ -15,7 +15,7 @@ function _check_weight_matrix(weight_matrix)
 end
 
 function _build_path(state::LightGraphs.AbstractPathState, demand::Edge)
-    # TODO: use LightGraphs.enumerate_paths?
+    # TODO: use LightGraphs.enumerate_paths? It returns lists of vertices and not edges...
     reverse_nodes = [dst(demand)]
     current_node = dst(demand)
     while current_node != src(demand)
@@ -25,7 +25,10 @@ function _build_path(state::LightGraphs.AbstractPathState, demand::Edge)
     return [Edge(reverse_nodes[i], reverse_nodes[i - 1]) for i in length(reverse_nodes):-1:2]
 end
 
-function _solve_pricing_problem_master(rd::RoutingData, dual_values_matrices, dual_value_convexity, matrices::Vector{Dict{Edge{Int}, Float64}})
+function _oblivious_iterative_solve_pricing_problem_master(rd::RoutingData,
+                                                           dual_values_matrices,
+                                                           dual_value_convexity,
+                                                           matrices::Vector{Dict{Edge{Int}, Float64}})
     paths = Dict{Edge{Int}, Vector{Edge}}()
 
     for demand in demands(rd)
@@ -47,6 +50,7 @@ function _solve_pricing_problem_master(rd::RoutingData, dual_values_matrices, du
             end
         end
 
+        # Check that at least some weights are nonzero.
         if ! _check_weight_matrix(weight_matrix)
             continue
         end
@@ -75,7 +79,7 @@ function _solve_pricing_problem_master(rd::RoutingData, dual_values_matrices, du
     return paths
 end
 
-function _solve_pricing_problem_subproblem(rd::RoutingData, dual_values_capacity)
+function _oblivious_iterative_solve_pricing_problem_subproblem(rd::RoutingData, dual_values_capacity)
     paths = Dict{Edge{Int}, Vector{Edge}}()
 
     # Determine the weight matrix to use for the computations.
@@ -185,14 +189,14 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::Minim
         m = rm.model
         optimize!(m)
         result = termination_status(m)
-        current_routing = Routing(rd, value.(rm.routing))
+        current_routing = Routing(rd, value.(rm.routing)) # TODO: remember all generated routings.
 
         # Check if there are still columns to add.
         dual_values_matrices = Dict(tm => Dict(e => dual(constraint) for (e, constraint) in d) for (tm, d) in rm.constraints_matrices)
         dual_value_convexity = dual.(rm.constraints_convexity)
         matrices = collect(keys(rm.constraints_matrices))
 
-        new_paths = _solve_pricing_problem_master(rd, dual_values_matrices, dual_value_convexity, matrices)
+        new_paths = _oblivious_iterative_solve_pricing_problem_master(rd, dual_values_matrices, dual_value_convexity, matrices)
         n_new_paths += length(new_paths)
 
         if length(new_paths) == 0
@@ -204,6 +208,8 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::Minim
             path_id = _add_path_to_data(rd, d, path)
             _add_path_to_master_formulation(rd, rm, d, path_id)
         end
+
+        # TODO: propose to output problems at each iteration (_export_lp_if_allowed).
     end
 
     return result, current_routing, n_new_paths
@@ -222,7 +228,7 @@ function solve_subproblem(rd::RoutingData, rm::RoutingModel, s_rm::RoutingModel,
         dual_values_capacity = Dict(e => dual(constraint) for (e, constraint) in s_rm.constraints_capacity)
 
         rd.logmessage("Subpricing for edge $e_bar")
-        new_paths = _solve_pricing_problem_subproblem(rd, dual_values_capacity)
+        new_paths = _oblivious_iterative_solve_pricing_problem_subproblem(rd, dual_values_capacity)
         n_new_paths += length(new_paths)
 
         if length(new_paths) == 0
@@ -235,6 +241,8 @@ function solve_subproblem(rd::RoutingData, rm::RoutingModel, s_rm::RoutingModel,
             _add_path_to_master_formulation(rd, rm, d, path_id)
             _add_path_to_subproblem_formulation(rd, s_rm, d, path_id)
         end
+
+        # TODO: propose to output problems at each iteration (_export_lp_if_allowed).
     end
 
     routing_v = value.(s_rm.routing)

@@ -24,7 +24,7 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         @constraint(m, mmf[e in edges(rd)], objective_edge_expression(rm, edge_obj, e) >= τ)
     end
 
-    time_precompute_ms = (time_ns() - start) / 1_000_000.
+    time_create_master_model_ms = (time_ns() - start) / 1_000_000.
 
     # Memorise the evolution of the algorithm.
     n_iter = 0
@@ -157,7 +157,8 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     # redundant constraints).
 
     return RoutingSolution(rd, result=end_status,
-                           time_precompute_ms=rd.time_precompute_ms + time_precompute_ms,
+                           time_precompute_ms=rd.time_precompute_ms,
+                           time_create_master_model_ms=time_create_master_model_ms,
                            time_solve_ms=times_ms,
                            objectives=objectives,
                            matrices=rd.traffic_matrix,

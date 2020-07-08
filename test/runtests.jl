@@ -6,7 +6,7 @@ using LightGraphs, MetaGraphs
 
 using Seleroute
 
-@testset "Routings" begin
+@testset "Seleroute.jl" begin
     include("topology.jl")
     include("data_parameters.jl")
     include("data_solution.jl")

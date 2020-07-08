@@ -9,7 +9,7 @@ function get_traffic_matrices(rm::RoutingModel)
 
     l_tm = Set{Dict{Edge{Int}, Float64}}()
     for e in edges(rd)
-        push!(l_tm, Dict{Edge{Int}, Float64}(k => JuMP.dual(dual_constraints[e][k]) for k in keys(dual_constraints[e])))
+        push!(l_tm, Dict{Edge{Int}, Float64}(k => dual(dual_constraints[e][k]) for k in keys(dual_constraints[e])))
     end
     return collect(l_tm)
 end
@@ -17,8 +17,10 @@ end
 function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, formulation::FormulationType, ::Val{false}, ::DualReformulation, ::ObliviousUncertainty, ::UncertainDemand)
     start = time_ns()
     rm = master_formulation(rd, formulation)
+    time_create_master_model_ms = (time_ns() - start) / 1_000_000.
 
     # Solve the problem and generate the output data structure.
+    start = time_ns()
     optimize!(rm.model)
     rd.logmessage(objective_value(rm.model))
     status = termination_status(rm.model)
@@ -40,6 +42,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, formulation:
 
     return RoutingSolution(rd,
                            time_precompute_ms=rd.time_precompute_ms,
+                           time_create_master_model_ms=time_create_master_model_ms,
                            time_solve_ms=(stop - start) / 1_000_000.,
                            objectives=[objective_value(rm.model)],
                            matrices=matrices,

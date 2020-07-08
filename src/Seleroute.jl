@@ -58,6 +58,7 @@ include("compute/oblivious/iter_pathcg.jl")
 include("compute/oblivious/rr.jl")
 include("compute/oblivious/rr_flow.jl")
 include("compute/oblivious/rr_path.jl")
+include("compute/oblivious/rr_pathcg.jl") # Must be included after iter_pathcg.jl due to shared helpers. 
 include("output/plots.jl")
 include("output/reports.jl")
 include("experiments/random.jl")

@@ -4,6 +4,7 @@ It returns one object, a `RoutingSolution`, containing all intermediary results.
 """
 function compute_routing(rd::RoutingData)
     # Only perform dispatch on the type of model.
+    # TODO: everywhere if iterative, add parameter to remember all generated routings or not (store it in RoutingData?). 
     mt = rd.model_type
     return compute_routing(rd, mt.edge_obj, mt.agg_obj, mt.type, Val(mt.cg), mt.algo, mt.unc, mt.uncparams)
 end

@@ -128,6 +128,7 @@ end
 
 function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::FormulationType, cg::Val, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
     # Create the master problem.
+    start = time_ns()
     m = Model(rd.solver)
     set_silent(m)
     rm = basic_routing_model_unitary(m, rd)
@@ -135,6 +136,9 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
     rm.mu = mu
     @objective(m, Min, mu)
 
+    time_create_master_model_ms = (time_ns() - start) / 1_000_000.
+
+    # Initialise data structures to hold all intermediate results.
     objectives = Float64[]
     routings = Routing[]
     matrices = Dict{Int, Vector{Dict{Edge{Int}, Float64}}}()
@@ -144,6 +148,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
     total_new_paths = 0
     time_solve_ms = Float64[]
 
+    # Start the oblivious loop.
     while true
         start = time_ns()
 
@@ -268,6 +273,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
                            n_cuts=total_cuts,
                            n_columns=total_new_paths,
                            time_precompute_ms=rd.time_precompute_ms,
+                           time_create_master_model_ms=time_create_master_model_ms,
                            time_solve_ms=time_solve_ms,
                            objectives=objectives,
                            matrices=matrices,

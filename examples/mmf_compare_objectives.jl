@@ -11,18 +11,26 @@
 
 include("topologies.jl")
 
-using PrettyTables, LightGraphs
+using PrettyTables, LightGraphs, DelimitedFiles
 using JuMP, CPLEX, Gurobi, Mosek, MosekTools
 
 # opt = CPLEX.Optimizer
 opt = optimizer_with_attributes(Gurobi.Optimizer, "NonConvex" => 2)
 # opt = Mosek.Optimizer
 
-ftopologies = [t for t in topologies if ! (t.name in ["att", "abilene", "basic"])]
+ftopologies = [t for t in topologies if ! (t.name in ["att", "abilene"])]
 ε = 1.0e-8
 
 objs = [Load(), KleinrockLoad(true), FortzThorupLoad()]#, AlphaFairness(0.5)]#, AlphaFairness(1.0)]#, AlphaFairness(1.5), AlphaFairness(2.0)]
 table = Matrix{Any}(undef, 2 * length(ftopologies), 2 + length(objs))
+csv_cols = ["Instance", "Number of edges", "Number of nodes", "Number of demands",
+            "Objective function for MMF", "MMF iterations", "Time to create the master problem [ms]",
+            "Computation time (per iteration) [ms]", "Maximum iteration time [ms]", "Total iteration time [ms]",
+            "Total time [ms]", "Maximum load of the obtained routing", "MMF status code"]
+csv = Matrix{String}(undef, 1 + length(ftopologies) * length(objs), length(csv_cols))
+csv[1, :] = csv_cols
+csv_row = 2
+
 for (i, t) in enumerate(ftopologies)
     println("=> $(t.name)")
     g, k, dm = topology_to_graphs(t)
@@ -43,8 +51,16 @@ for (i, t) in enumerate(ftopologies)
         sol = compute_routing(rd)
 
         r = sol.routings[sol.n_iter]
-        push!(loads, compute_max_load(r))
+        max_load = compute_max_load(r)
+        push!(loads, max_load)
         push!(n_paths, length(r.paths))
+
+        global csv_row
+        csv[csv_row, :] = String[t.name, string(ne(g)), string(nv(g)), string(ne(k)),
+                                 string(obj), string(sol.n_iter), string(sol.time_create_master_model_ms),
+                                 string(sol.time_solve_ms), string(maximum(values(sol.time_solve_ms))), string(sol.total_time_solve_ms),
+                                 string(sol.total_time_ms), string(max_load), string(sol.result)]
+        csv_row += 1
     end
 
     table[2 * i - 1, :] = vcat([t.name, "Max load"], loads)
@@ -54,3 +70,6 @@ end
 @ptconfclean
 @ptconf tf = unicode_rounded
 @pt :header = ["", "", objs...] table
+
+# println(csv)
+writedlm("$(@__DIR__)/mmf_compare_objectives.csv", csv, ',')

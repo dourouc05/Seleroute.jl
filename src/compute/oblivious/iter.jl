@@ -129,8 +129,7 @@ end
 function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::FormulationType, cg::Val, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
     # Create the master problem.
     start = time_ns()
-    m = Model(rd.solver)
-    set_silent(m)
+    m = _create_model(rd)
     rm = basic_routing_model_unitary(m, rd)
     @variable(m, mu >= 0)
     rm.mu = mu
@@ -181,8 +180,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
             end
 
             # Solve the corresponding separation problem.
-            s_m = Model(rd.solver)
-            set_silent(s_m)
+            s_m = _create_model(rd)
             s_rm = oblivious_subproblem_model(s_m, rd, e_bar, current_routing, type)
 
             s_result, n_sub_new_paths, candidate_matrix = solve_subproblem(rd, rm, s_rm, e_bar, Load(), MinimumMaximum(), type, cg, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())

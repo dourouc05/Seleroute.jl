@@ -1,7 +1,5 @@
 function master_formulation(rd::RoutingData, ::PathFormulation)
-    m = Model(rd.solver)
-    set_silent(m)
-
+    m = _create_model(rd)
     rm = basic_routing_model_unitary(m, rd, PathFormulation()) # Includes convexity constraint.
 
     @variable(m, mu >= 0)
@@ -51,12 +49,12 @@ function master_formulation(rd::RoutingData, ::PathFormulation)
     end
 
     if rd.model_robust_reformulation_traffic_matrices
-        return RoutingModel(rd, m, UnitaryFlows, mu, rm.routing,
+        return RoutingModel(rd, m, UnitaryFlows, rm.routing, mu=mu,
                             dual_alpha=dual_alpha, dual_beta=dual_beta,
                             constraints_uncertainty_set=dual_constraints,
                             constraints_convexity=rm.constraints_convexity)
     else
-        return RoutingModel(rd, m, UnitaryFlows, mu, rm.routing, dual=dual,
+        return RoutingModel(rd, m, UnitaryFlows, rm.routing, mu=mu, dual=dual,
                             constraints_convexity=rm.constraints_convexity)
     end
 end

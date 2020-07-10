@@ -7,3 +7,9 @@ function _find_path_ids_with_edge(rd::RoutingData, e::Edge)
         error("Precomputed paths are not available. Are you trying to use this function in a flow-based formulation?")
     end
 end
+
+function _create_model(rd::RoutingData)
+    m = Model(rd.solver)
+    set_silent(m) # TODO: add a parameter for this
+    return m
+end

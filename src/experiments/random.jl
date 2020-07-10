@@ -19,8 +19,7 @@ function random_experiment(rd::RoutingData, solver, oblivious_routing::Routing,
 
     # Compute the optimum load for this traffic matrix, with a routing that
     # is perfectly adapted to it.
-    m = Model(rd.solver)
-    set_silent(m)
+    m = _create_model(rd)
     capacitated_demand_routing_model(m, rd, traffic)
     optimize!(m)
     optimum_load = objective_value(m)

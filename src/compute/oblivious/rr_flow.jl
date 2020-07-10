@@ -1,7 +1,5 @@
 function master_formulation(rd::RoutingData, type::FlowFormulation)
-    m = Model(rd.solver)
-    set_silent(m)
-
+    m = _create_model(rd)
     rm = basic_routing_model_unitary(m, rd, type) # Includes flow-conservation constraints.
 
     @variable(m, mu >= 0)
@@ -35,5 +33,5 @@ function master_formulation(rd::RoutingData, type::FlowFormulation)
         @constraint(m, lhs / get_prop(rd.g, e, :capacity) <= mu)
     end
 
-    return RoutingModel(rd, m, UnitaryFlows, mu, rm.routing, dual_alpha=dual_alpha, dual_beta=dual_beta)
+    return RoutingModel(rd, m, UnitaryFlows, rm.routing, mu=mu, dual_alpha=dual_alpha, dual_beta=dual_beta)
 end

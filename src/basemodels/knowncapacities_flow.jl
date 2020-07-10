@@ -45,7 +45,7 @@ function basic_routing_model_unitary(m::Model, rd::RoutingData, ::FlowFormulatio
     cstrs_src_in, cstrs_src_out, cstrs_dst_in, cstrs_dst_out, cstrs_bal =
         _basic_routing_model_unitary_flow_conservation_flow_formulation(m, rd, routing, d -> 1)
 
-    return RoutingModel(rd, m, UnitaryFlows, nothing, routing,
+    return RoutingModel(rd, m, UnitaryFlows, routing,
         constraints_source_in=cstrs_src_in, constraints_source_out=cstrs_src_out,
         constraints_target_in=cstrs_dst_in, constraints_target_out=cstrs_dst_out,
         constraints_balance=cstrs_bal)
@@ -59,7 +59,7 @@ function basic_routing_model_unscaled(m::Model, rd::RoutingData, dm, ::FlowFormu
     cstrs_src_in, cstrs_src_out, cstrs_dst_in, cstrs_dst_out, cstrs_bal =
         _basic_routing_model_unitary_flow_conservation_flow_formulation(m, rd, routing, d -> dm[d])
 
-    return RoutingModel(rd, m, UnscaledFlows, nothing, routing,
+    return RoutingModel(rd, m, UnscaledFlows, routing,
         constraints_source_in=cstrs_src_in, constraints_source_out=cstrs_src_out,
         constraints_target_in=cstrs_dst_in, constraints_target_out=cstrs_dst_out,
         constraints_balance=cstrs_bal)

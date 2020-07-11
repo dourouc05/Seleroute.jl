@@ -41,7 +41,7 @@ function capacity_constraints(rm::RoutingModel, dm::Union{Dict{Edge{Int}, Float6
     for e in edges(rm.data)
         flow = total_flow_in_edge(rm, e, dm)
         if ! iszero(flow)
-            rm.constraints_capacity[e] = @constraint(rm.model, flow <= get_prop(rm.data.g, e, :capacity))
+            rm.constraints_capacity[e] = @constraint(rm.model, flow <= capacity(rm, e))
         end
     end
 end
@@ -61,7 +61,7 @@ function mu_capacity_constraints(rm::RoutingModel, dm::Union{Dict{Edge{Int}, Flo
     for e in edges(rm.data)
         flow = total_flow_in_edge(rm, e, dm)
         if ! iszero(flow)
-            rm.constraints_capacity[e] = @constraint(rm.model, flow <= rm.mu * get_prop(rm.data.g, e, :capacity))
+            rm.constraints_capacity[e] = @constraint(rm.model, flow <= rm.mu * capacity(rm, e))
         end
     end
 end

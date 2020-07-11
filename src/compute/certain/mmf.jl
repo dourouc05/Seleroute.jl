@@ -30,7 +30,7 @@ function master_mmf_problem(m::Model, rd::RoutingData, edge_obj::EdgeWiseObjecti
     return rm
 end
 
-function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, agg_obj::Union{MinMaxFair, MaxMinFair}, type::FormulationType, cg::Val{false}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
+function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, agg_obj::Union{MinMaxFair, MaxMinFair}, type::FormulationType, cg::Val, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
     # Implementation of the water-filling algorithm for MMF routings (aka MFMF).
     # https://ica1www.epfl.ch/PS_files/LEB3132.pdf
     # https://www.utc.fr/~dnace/recherche/Publication/Inoc03Nace.pdf
@@ -39,11 +39,12 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
 
     # Create the master problem.
     m = _create_model(rd)
-    rm = master_mmf_problem(m, rd, edge_obj, edge_agg)
+    rm = master_mmf_problem(m, rd, edge_obj, agg_obj)
     time_create_master_model_ms = (time_ns() - start) / 1_000_000.
 
     # Memorise the evolution of the algorithm.
     n_iter = 0
+    n_new_paths = 0
     routings = Routing[]
     objectives = Float64[]
     times_ms = Float64[]
@@ -57,22 +58,68 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     while length(edges_to_do) > 0
         start = time_ns()
 
-        # Optimise for this iteration.
-        optimize!(m)
-        status = termination_status(m)
-        _export_lp_if_allowed(rd, m, "lp_$(n_iter)")
+        # Optimise for this iteration, possibly using column generation.
+        cg_it = 0
+        while true
+            # Actual optimisation
+            optimize!(m)
+            status = termination_status(m)
+            _export_lp_if_allowed(rd, m, "lp_$(n_iter)_$(cg_it)")
 
-        # Handle abnormal cases.
-        if status != MOI.OPTIMAL
-            # OPTIMAL status is shown with the objective value.
-            rd.logmessage("[$(n_iter)] Status: $(status).")
+            # Handle abnormal cases.
+            if status != MOI.OPTIMAL
+                # OPTIMAL status is shown with the objective value.
+                rd.logmessage("[$(n_iter)] Status: $(status).")
 
-            # Debug infeasibility if need be.
-            _debug_infeasibility_mmf(rd, status, n_iter, edge_obj, agg_obj, type, cg, algo, unc, uncparams)
+                # Debug infeasibility if need be.
+                _debug_infeasibility_mmf(rd, status, n_iter, edge_obj, agg_obj, type, cg, algo, unc, uncparams)
 
-            # Report other problematic codes.
-            if status in [MOI.INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED] && n_iter > 0
-                end_status = MOI.ALMOST_OPTIMAL
+                # Report other problematic codes.
+                if status in [MOI.INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED] && n_iter > 0
+                    end_status = MOI.ALMOST_OPTIMAL
+                    break
+                end
+            end
+
+            # Quit if no column generation process allowed.
+            if cg == Val(false)
+                break
+            end
+
+            # Perform some column generation if need be.
+            @assert typeof(type) <: PathFormulation
+
+            # First, the pricing.
+            dual_value_convexity = dual.(rm.constraints_convexity) # Demand -> dual value
+            dual_values_capacity = Dict(e => dual(rm.constraints_capacity[e]) for e in edges(rd)) # Edge -> dual value
+            dual_values_mmf = Dict(e => dual(rm.constraints_mmf[e]) for e in edges(rd)) # Edge -> dual value
+
+            new_paths = _mmf_solve_pricing_problem(rd, dual_values_capacity, dual_values_mmf, dual_value_convexity)
+            n_new_paths += length(new_paths)
+
+            # Add the new columns to the formulation.
+            for (d, path) in new_paths
+                # Add the new columns to the data object and retrieve a path ID.
+                path_id = add_path!(rm, d, path)
+
+                # Get your hands dirty in the formulation.
+                # - Create a new variable for this path, add it into the
+                #   convexity and capacity constraints.
+                add_routing_var!(rm, demand, path_id, constraint_capacity=true)
+
+                # TODO: normalised way of having traffic matrices in rd? Are graph attributes forbidden/unused everywhere? What about passing them as arguments, as helpers in knowncapacities?
+                dd = rd.traffic_matrix[d]
+                for e in path
+                    # - MMF constraint.
+                    ce = capacity(rd, e)
+                    set_normalized_coefficient(rm.constraints_mmf[e], rm.routing[d, path_id], dd / ce)
+                end
+            end
+
+            rd.logmessage("[$(n_iter) | $(cg_it)] Added $(length(new_paths)) new paths.")
+            cg_it += 1
+
+            if length(new_paths) == 0
                 break
             end
         end
@@ -84,7 +131,7 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         push!(objectives, master_τ)
 
         # Find edges to fix.
-        new_edges = _mmf_find_edges_to_fix(rm, master_τ)
+        new_edges = _mmf_find_edges_to_fix(rm, master_τ, edges_to_do, agg_obj)
         rd.logmessage("  Number of variables to fix: $(length(new_edges)).")
 
         # Debugging when no edge met the conditions.
@@ -130,13 +177,65 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
                            time_precompute_ms=rd.time_precompute_ms,
                            time_create_master_model_ms=time_create_master_model_ms,
                            time_solve_ms=times_ms,
+                           n_columns=n_new_paths,
                            objectives=objectives,
                            matrices=rd.traffic_matrix,
                            routings=routings,
                            master_model=rm)
 end
 
-function _mmf_find_edges_to_fix(rm::RoutingModel, master_τ::Float64)
+function _mmf_solve_pricing_problem(rd::RoutingData, dual_values_capacity, dual_values_mmf, dual_value_convexity)
+    paths = Dict{Edge{Int}, Vector{Edge}}()
+
+    # Determine the weight matrix to use for the computations:
+    #     \sum_{e\in p} dualcapa_{e} + dualmmf_{e} / capa_e
+    weight_matrix = spzeros(Float64, n_nodes(rd), n_nodes(rd))
+    for e in edges(rd)
+        value = dual_values_capacity[e] + dual_values_mmf[e] / capacity(rd, e)
+        if value <= - CPLEX_REDUCED_COST_TOLERANCE
+            weight_matrix[src(e), dst(e)] = value
+        end
+    end
+    weight_matrix .+= maximum(abs.(weight_matrix))
+
+    # Check that at least some weights are nonzero.
+    if nnz(weight_matrix) == 0
+        # No need for the potentially expensive _check_weight_matrix,
+        # as no value in weight_matrix can be below the tolerance by
+        # construction (no addition, unlike iterative version of oblivious).
+        return paths
+    end
+
+    # Perform the pricing for each demand.
+    for demand in demands(rd)
+        rd.logmessage("Pricing for $demand")
+
+        # Compute the shortest path for this demand.
+        state = desopo_pape_shortest_paths(rd.g, src(demand), weight_matrix)
+
+        # Is there a solution? Has this path a negative reduced cost?
+        if all(state.parents .== 0)
+            continue
+        end
+        reduced_cost = - state.dists[dst(demand)] * rd.traffic_matrix[demand] - dual_value_convexity[demand]
+        if reduced_cost >= - CPLEX_REDUCED_COST_TOLERANCE
+            continue
+        end
+        rd.logmessage(reduced_cost)
+
+        # Build the path.
+        path = _build_path(state, demand)
+        if path in rd.paths_edges
+            rd.logmessage("New path $(path) is already in the formulation!")
+        else
+            paths[demand] = path
+        end
+    end
+
+    return paths
+end
+
+function _mmf_find_edges_to_fix(rm::RoutingModel, master_τ::Float64, edges_to_do, agg_obj)
     # Check which constraints are satisfied at equality (i.e. nonzero dual
     # value, as the constraint is either ≥ or ≤).
     new_edges = Dict{Edge{Int}, Float64}()
@@ -165,20 +264,20 @@ end
 
 function _mmf_fix_edge(rm::RoutingModel, e::Edge{Int}, value::Float64, rhs::Float64)
     rm.data.logmessage("  Fixing $e to $value ≈ $rhs (relaxed value)")
-    set_normalized_coefficient(rm.constraints_mmf[e], τ, 0)
+    set_normalized_coefficient(rm.constraints_mmf[e], rm.tau, 0)
     set_normalized_rhs(rm.constraints_mmf[e], rhs)
 end
 
 _mmf_fix_edge(rm::RoutingModel, e::Edge{Int}, value::Float64, agg_obj::MinMaxFair) =
-    _mmf_fix_edge(rm, r, value, value * (1 + agg_obj.ε))
+    _mmf_fix_edge(rm, e, value, value * (1 + agg_obj.ε))
 
 _mmf_fix_edge(rm::RoutingModel, e::Edge{Int}, value::Float64, agg_obj::MaxMinFair) =
-    _mmf_fix_edge(rm, r, value, value * (1 - agg_obj.ε))
+    _mmf_fix_edge(rm, e, value, value * (1 - agg_obj.ε))
 
 # Debug infeasiblity. Implement the main logic here. Throw an error in case of
 # infeasibility.
 function _debug_infeasibility_mmf(rd::RoutingData, status::MOI.TerminationStatusCode, n_iter::Int,
-                                  edge_obj::EdgeWiseObjectiveFunction, Union{MinMaxFair, MaxMinFair},
+                                  edge_obj::EdgeWiseObjectiveFunction, agg_obj::Union{MinMaxFair, MaxMinFair},
                                   type::FormulationType, cg::Val, algo::Automatic,
                                   unc::NoUncertaintyHandling, uncparams::NoUncertainty)
     if status in [MOI.INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED] && n_iter == 0

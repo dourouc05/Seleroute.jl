@@ -45,28 +45,18 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
         n_new_paths += length(new_paths)
 
         # Add the new columns to the formulation.
-        for path in new_paths
+        for (d, path) in new_paths
             # Add the new columns to the data object and retrieve a path ID.
-            # All demands already have a path, by assumption. Otherwise, the
-            # master problem should not be feasible. Hence, computing the new
-            # path ID is easy: just take the length of the vector.
-            push!(rd.paths_edges, path)
-            path_id = length(rd.paths_edges)
-
-            rd.path_id_to_demand[path_id] = demand
-            push!(rd.demand_to_path_ids[demand], path_id)
+            path_id = add_path!(rd, d, path)
 
             # Get your hands dirty in the formulation.
-            # - Create a new variable for this path.
-            s_rm.routing[demand, path_id] = @variable(s_rm.model, lower_bound=0, upper_bound=1)
-            set_name(s_rm.routing[demand, path_id], "routing[$demand, $path_id]")
-
-            # - Add it into the convexity constraint.
-            set_normalized_coefficient(rm.constraints_convexity[demand], rm.routing[demand, path_id], 1)
+            # - Create a new variable for this path, add it into the
+            #   convexity constraint.
+            add_routing_var!(rm, demand, path_id)
 
             for e in edges(rd)
                 # - Add it into the uncertainty sets.
-                set_normalized_coefficient(rm.constraints_uncertainty_set[e][demand], rm.routing[demand, path_id], 1)
+                set_normalized_coefficient(rm.constraints_uncertainty_set[e][d], rm.routing[d, path_id], 1)
 
                 # - Create the new constraint.
                 @constraint(m, rm.dual_alpha[e, d] + sum(rm.dual_beta[e, e2] for e2 in path) >= 0)
@@ -116,10 +106,10 @@ function _oblivious_reformulation_solve_pricing_problem(rd::RoutingData, dual_va
         # Determine the weight matrix to use for the computations:
         #     for d: \sum_{e\in p} dual_{e, d}
         rd.logmessage("Pricing for $demand")
-        weight_matrix = spzeros(Float64, n_edges(rd), n_edges(rd))
+        weight_matrix = spzeros(Float64, n_nodes(rd), n_nodes(rd))
         for e in edges(rd)
             if dual_values_uncer[demand][e] <= - CPLEX_REDUCED_COST_TOLERANCE
-                weight_matrix[src(e), dst(e)] += dual_values_uncer[demand][e]
+                weight_matrix[src(e), dst(e)] = dual_values_uncer[demand][e]
             end
         end
         weight_matrix .+= maximum(abs.(weight_matrix))
@@ -139,10 +129,11 @@ function _oblivious_reformulation_solve_pricing_problem(rd::RoutingData, dual_va
         if all(state.parents .== 0)
             continue
         end
-        if state.dists[dst(demand)] - dual_value_convexity[demand] >= - CPLEX_REDUCED_COST_TOLERANCE
+        reduced_cost = state.dists[dst(demand)] - dual_value_convexity[demand]
+        if reduced_cost >= - CPLEX_REDUCED_COST_TOLERANCE
             continue
         end
-        rd.logmessage(state.dists[dst(demand)] - dual_value_convexity[demand])
+        rd.logmessage(reduced_cost)
 
         # Build the path.
         path = _build_path(state, demand)

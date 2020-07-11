@@ -29,8 +29,8 @@ function master_formulation(rd::RoutingData, type::FlowFormulation)
         end
 
         # Relate the main decision variables to the uncertainty sets.
-        lhs = sum(dual_beta[e, e2] * get_prop(rd.g, e2, :capacity) for e2 in edges(rd))
-        @constraint(m, lhs / get_prop(rd.g, e, :capacity) <= mu)
+        lhs = sum(dual_beta[e, e2] * capacity(rd, e2) for e2 in edges(rd))
+        @constraint(m, lhs / capacity(rd, e) <= mu)
     end
 
     return RoutingModel(rd, m, UnitaryFlows, rm.routing, mu=mu, dual_alpha=dual_alpha, dual_beta=dual_beta)

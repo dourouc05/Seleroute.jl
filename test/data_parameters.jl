@@ -1,85 +1,85 @@
-g = MetaDiGraph() # Directed graph.
-add_vertex!(g, :name, "A")
-add_vertex!(g, :name, "B")
-add_vertex!(g, :name, "C")
-add_vertex!(g, :name, "D")
-add_edge!(g, 1, 2, :capacity, 1.0)
-add_edge!(g, 1, 3, :capacity, 1.0)
-add_edge!(g, 2, 4, :capacity, 1.0)
-add_edge!(g, 3, 4, :capacity, 1.0)
+@testset "RoutingData" begin
+    g = MetaDiGraph() # Directed graph.
+    add_vertex!(g, :name, "A")
+    add_vertex!(g, :name, "B")
+    add_vertex!(g, :name, "C")
+    add_vertex!(g, :name, "D")
+    add_edge!(g, 1, 2, :capacity, 1.0)
+    add_edge!(g, 1, 3, :capacity, 1.0)
+    add_edge!(g, 2, 4, :capacity, 1.0)
+    add_edge!(g, 3, 4, :capacity, 1.0)
 
-ug = MetaGraph() # Undirected graph (otherwise same as above).
-add_vertex!(ug, :name, "A")
-add_vertex!(ug, :name, "B")
-add_vertex!(ug, :name, "C")
-add_vertex!(ug, :name, "D")
-add_edge!(ug, 1, 2, :capacity, 1.0)
-add_edge!(ug, 1, 3, :capacity, 1.0)
-add_edge!(ug, 2, 4, :capacity, 1.0)
-add_edge!(ug, 3, 4, :capacity, 1.0)
+    ug = MetaGraph() # Undirected graph (otherwise same as above).
+    add_vertex!(ug, :name, "A")
+    add_vertex!(ug, :name, "B")
+    add_vertex!(ug, :name, "C")
+    add_vertex!(ug, :name, "D")
+    add_edge!(ug, 1, 2, :capacity, 1.0)
+    add_edge!(ug, 1, 3, :capacity, 1.0)
+    add_edge!(ug, 2, 4, :capacity, 1.0)
+    add_edge!(ug, 3, 4, :capacity, 1.0)
 
-g_unreachable = MetaDiGraph()
-add_vertex!(g_unreachable, :name, "A")
-add_vertex!(g_unreachable, :name, "B")
-add_vertex!(g_unreachable, :name, "C")
-add_vertex!(g_unreachable, :name, "D")
-add_edge!(g_unreachable, 1, 2, :capacity, 1.0)
-add_edge!(g_unreachable, 2, 4, :capacity, 1.0)
-# Node C has no edge.
+    g_unreachable = MetaDiGraph()
+    add_vertex!(g_unreachable, :name, "A")
+    add_vertex!(g_unreachable, :name, "B")
+    add_vertex!(g_unreachable, :name, "C")
+    add_vertex!(g_unreachable, :name, "D")
+    add_edge!(g_unreachable, 1, 2, :capacity, 1.0)
+    add_edge!(g_unreachable, 2, 4, :capacity, 1.0)
+    # Node C has no edge.
 
-k = SimpleDiGraph(4)
-add_edge!(k, 1, 4)
+    k = SimpleDiGraph(4)
+    add_edge!(k, 1, 4)
 
-uk = SimpleGraph(4)
-add_edge!(k, 1, 4)
+    uk = SimpleGraph(4)
+    add_edge!(k, 1, 4)
 
-k_unreachable = SimpleDiGraph(4)
-add_edge!(k_unreachable, 1, 3)
+    k_unreachable = SimpleDiGraph(4)
+    add_edge!(k_unreachable, 1, 3)
 
-@testset "Data: helpers" begin
-    @testset "remove_unreachable_nodes!" begin
-        g_ = copy(g_unreachable)
-        @test remove_unreachable_nodes!(g_) == 1
-        @test ne(g_) == 2
-        @test nv(g_) == 3
+    @testset "Helpers" begin
+        @testset "remove_unreachable_nodes!" begin
+            g_ = copy(g_unreachable)
+            @test remove_unreachable_nodes!(g_) == 1
+            @test ne(g_) == 2
+            @test nv(g_) == 3
+        end
+
+        @testset "remove_unsatisfiable_demands!" begin
+            g_ = copy(g_unreachable)
+            k_ = copy(k_unreachable)
+            @test remove_unsatisfiable_demands!(g_, k_) == 1
+            @test ne(g_) == 2
+            @test nv(g_) == 4
+            @test ne(k_) == 0
+        end
     end
 
-    @testset "remove_unsatisfiable_demands!" begin
-        g_ = copy(g_unreachable)
-        k_ = copy(k_unreachable)
-        @test remove_unsatisfiable_demands!(g_, k_) == 1
-        @test ne(g_) == 2
-        @test nv(g_) == 4
-        @test ne(k_) == 0
+    @testset "Parameters" begin
+        @testset "Undirected graph" begin
+            mt = ModelType(Load(), MinimumTotal(), PathFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
+            @test_throws ErrorException RoutingData(copy(ug), copy(k), ECOS.Optimizer, mt)
+            @test_throws ErrorException RoutingData(copy(g), copy(uk), ECOS.Optimizer, mt)
+            @test_throws ErrorException RoutingData(copy(ug), copy(uk), ECOS.Optimizer, mt)
+        end
+
+        @testset "Inexisting folder" begin
+            mt = ModelType(Load(), MinimumTotal(), PathFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
+            @test_throws ErrorException RoutingData(copy(g), copy(k), ECOS.Optimizer, mt, output_folder="/42/84/bullshit/")
+        end
+
+        @testset "Unsatisfiable or unreachable parts" begin
+            mt = ModelType(Load(), MinimumTotal(), PathFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
+
+            tmp = AbstractString[]
+            lm = (x) -> push!(tmp, x)
+            RoutingData(copy(g_unreachable), copy(k), ECOS.Optimizer, mt, verbose=true, logmessage=lm)
+            @test length(tmp) == 2
+            @test "Removed 1 vertices because they were not reachable." in tmp
+            @test "Removed 1 demands because they were not routable." in tmp
+        end
     end
-end
 
-@testset "Data: parameters for RoutingData" begin
-    @testset "Undirected graph" begin
-        mt = ModelType(Load(), MinimumTotal(), PathFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
-        @test_throws ErrorException RoutingData(copy(ug), copy(k), ECOS.Optimizer, mt)
-        @test_throws ErrorException RoutingData(copy(g), copy(uk), ECOS.Optimizer, mt)
-        @test_throws ErrorException RoutingData(copy(ug), copy(uk), ECOS.Optimizer, mt)
-    end
-
-    @testset "Inexisting folder" begin
-        mt = ModelType(Load(), MinimumTotal(), PathFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
-        @test_throws ErrorException RoutingData(copy(g), copy(k), ECOS.Optimizer, mt, output_folder="/42/84/bullshit/")
-    end
-
-    @testset "Unsatisfiable or unreachable parts" begin
-        mt = ModelType(Load(), MinimumTotal(), PathFormulation(), false, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
-
-        tmp = AbstractString[]
-        lm = (x) -> push!(tmp, x)
-        RoutingData(copy(g_unreachable), copy(k), ECOS.Optimizer, mt, verbose=true, logmessage=lm)
-        @test length(tmp) == 2
-        @test "Removed 1 vertices because they were not reachable." in tmp
-        @test "Removed 1 demands because they were not routable." in tmp
-    end
-end
-
-@testset "Data: parameters for ModelType" begin
     @testset "Objective functions: support_min/max" begin
         @test supports_min(Load())
         @test supports_max(Load())
@@ -97,7 +97,7 @@ end
         @test supports_max(AlphaFairness(0.5))
     end
 
-    @testset "Parameter compatibility" begin
+    @testset "ModelType: parameter compatibility" begin
         function __test_mt_modeltype(mt, edge_obj, agg_obj, type, cg, algo, unc, uncparams)
             # The model type object should match the arguments.
             @test mt.edge_obj == edge_obj()

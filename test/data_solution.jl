@@ -1,4 +1,4 @@
-@testset "Data: solution objects" begin
+@testset "Solution objects" begin
     @testset "Graph 1" begin
         g = MetaDiGraph()
         add_vertex!(g, :name, "A")

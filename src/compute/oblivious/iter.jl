@@ -93,7 +93,7 @@ function add_traffic_matrix(rm::RoutingModel, matrix::Dict{Edge{Int}, Float64}, 
     for e in edges(rm.data)
         flow = total_flow_in_edge(rm, e, matrix)
         if ! iszero(flow)
-            rm.constraints_matrices[matrix][e] = @constraint(rm.model, flow <= rm.mu * get_prop(rm.data.g, e, :capacity) * opt_d)
+            rm.constraints_matrices[matrix][e] = @constraint(rm.model, flow <= rm.mu * capacity(rm, e) * opt_d)
             nb_added_cuts += 1
         end
     end
@@ -116,8 +116,9 @@ function oblivious_subproblem_model(m::Model, rd::RoutingData, e_bar::Edge, curr
     capacity_constraints(rm)
 
     # Objective function: maximise the congestion over the edge \bar{e}.
+    # TODO: objectives.jl?
     obj = total_flow_in_edge(current_routing, e_bar, demand)
-    obj /= get_prop(rd.g, e_bar, :capacity)
+    obj /= capacity(rd, e_bar)
     @objective(m, Max, obj)
 
     return rm

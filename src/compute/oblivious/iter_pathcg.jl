@@ -35,7 +35,7 @@ function _oblivious_iterative_solve_pricing_problem_master(rd::RoutingData,
         # Determine the weight matrix to use for the computations:
         #     for e: \sum_{D\in\Delta} dual_{e, d_k} d_k
         rd.logmessage("Pricing for $demand")
-        weight_matrix = spzeros(Float64, n_edges(rd), n_edges(rd))
+        weight_matrix = spzeros(Float64, n_nodes(rd), n_nodes(rd))
         for e in edges(rd)
             for matrix in matrices
                 if e in keys(dual_values_matrices[matrix])
@@ -62,10 +62,11 @@ function _oblivious_iterative_solve_pricing_problem_master(rd::RoutingData,
         if all(state.parents .== 0)
             continue
         end
-        if state.dists[dst(demand)] - dual_value_convexity[demand] >= - CPLEX_REDUCED_COST_TOLERANCE
+        reduced_cost = state.dists[dst(demand)] - dual_value_convexity[demand]
+        if reduced_cost >= - CPLEX_REDUCED_COST_TOLERANCE
             continue
         end
-        rd.logmessage(state.dists[dst(demand)] - dual_value_convexity[demand])
+        rd.logmessage(reduced_cost)
 
         # Build the path.
         path = _build_path(state, demand)
@@ -83,7 +84,7 @@ function _oblivious_iterative_solve_pricing_problem_subproblem(rd::RoutingData, 
     paths = Dict{Edge{Int}, Vector{Edge}}()
 
     # Determine the weight matrix to use for the computations.
-    weight_matrix = spzeros(Float64, n_edges(rd), n_edges(rd))
+    weight_matrix = spzeros(Float64, n_nodes(rd), n_nodes(rd))
     for e in keys(dual_values_capacity)
         # Ignore negative dual values, they are mostly numerical errors.
         if dual_values_capacity[e] <= CPLEX_REDUCED_COST_TOLERANCE
@@ -125,28 +126,11 @@ function _oblivious_iterative_solve_pricing_problem_subproblem(rd::RoutingData, 
     return paths
 end
 
-function _add_path_to_data(rd::RoutingData, demand::Edge, path::Vector{Edge})
-    # Update RoutingData with the new path.
-    push!(rd.paths_edges, path)
-    path_id = length(rd.paths_edges)
-    rd.path_id_to_demand[path_id] = demand
-
-    # All demands already have a path, by assumption. Otherwise, the master problem should not be feasible.
-    # Hence, computing the new path ID is easy.
-    push!(rd.demand_to_path_ids[demand], path_id)
-
-    return path_id
-end
-
 function _add_path_to_master_formulation(rd::RoutingData, rm::RoutingModel, demand::Edge, path_id::Int)
     # Update RoutingModel. Create a new variable for the new path, add it in the corresponding constraints.
 
-    # New variable.
-    rm.routing[demand, path_id] = @variable(rm.model, lower_bound=0, upper_bound=1)
-    set_name(rm.routing[demand, path_id], "routing[$demand, $path_id]")
-
-    # Convexity constraint.
-    set_normalized_coefficient(rm.constraints_convexity[demand], rm.routing[demand, path_id], 1)
+    # New variable and convexity constraint.
+    add_routing_var!(rm, demand, path_id)
 
     # Traffic constraints.
     for matrix in keys(rm.constraints_matrices)
@@ -164,6 +148,8 @@ end
 
 function _add_path_to_subproblem_formulation(rd::RoutingData, s_rm::RoutingModel, demand::Edge, path_id::Int)
     # Update RoutingModel. Create a new variable for the new path, add it in the corresponding constraints.
+
+    add_routing_var!(s_rm, demand, path_id)
 
     # New variable.
     s_rm.routing[demand, path_id] = @variable(s_rm.model, lower_bound=0, upper_bound=1)
@@ -205,7 +191,7 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::Minim
 
         # Add the new paths to the formulation.
         for (d, path) in new_paths
-            path_id = _add_path_to_data(rd, d, path)
+            path_id = add_path!(rd, d, path)
             _add_path_to_master_formulation(rd, rm, d, path_id)
         end
 

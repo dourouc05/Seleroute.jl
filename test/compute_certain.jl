@@ -16,9 +16,9 @@ function __testset_nouncertainty_shared(r::RoutingSolution, rd::RoutingData, dm)
     @test r.matrices[1][1] == dm
 end
 
-function __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
+function __testset_nouncertainty_minmax(edge_obj, type, cg, opt, g, paths, k, d, dm)
     @testset "Objective aggregation: minimum maximum" begin
-        mt = ModelType(edge_obj, MinimumMaximum(), type, false, Automatic(), NoUncertaintyHandling(), NoUncertainty())
+        mt = ModelType(edge_obj, MinimumMaximum(), type, cg, Automatic(), NoUncertaintyHandling(), NoUncertainty())
         rd = RoutingData(g, k, opt, mt, traffic_matrix=dm)
 
         r = nothing
@@ -80,7 +80,7 @@ function __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
     end
 
     @testset "Objective aggregation: maximum minimum" begin
-        mt = ModelType(edge_obj, MaximumMinimum(), type, false, Automatic(), NoUncertaintyHandling(), NoUncertainty())
+        mt = ModelType(edge_obj, MaximumMinimum(), type, cg, Automatic(), NoUncertaintyHandling(), NoUncertainty())
         rd = RoutingData(g, k, opt, mt, traffic_matrix=dm)
 
         r = nothing
@@ -167,9 +167,9 @@ function __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
     end
 end
 
-function __testset_nouncertainty_mintot(edge_obj, type, opt, g, paths, k, d, dm)
+function __testset_nouncertainty_mintot(edge_obj, type, cg, opt, g, paths, k, d, dm)
     @testset "Objective aggregation: minimum total" begin
-        mt = ModelType(edge_obj, MinimumTotal(), type, false, Automatic(), NoUncertaintyHandling(), NoUncertainty())
+        mt = ModelType(edge_obj, MinimumTotal(), type, cg, Automatic(), NoUncertaintyHandling(), NoUncertainty())
         rd = RoutingData(g, k, opt, mt, traffic_matrix=dm)
 
         r = nothing
@@ -242,7 +242,7 @@ function __testset_nouncertainty_mintot(edge_obj, type, opt, g, paths, k, d, dm)
     end
 
     @testset "Objective aggregation: maximum total" begin
-        mt = ModelType(edge_obj, MaximumTotal(), type, false, Automatic(), NoUncertaintyHandling(), NoUncertainty())
+        mt = ModelType(edge_obj, MaximumTotal(), type, cg, Automatic(), NoUncertaintyHandling(), NoUncertainty())
         rd = RoutingData(g, k, opt, mt, traffic_matrix=dm)
         r = nothing
 
@@ -333,9 +333,9 @@ function __testset_nouncertainty_mintot(edge_obj, type, opt, g, paths, k, d, dm)
     end
 end
 
-function __testset_nouncertainty_mmf(edge_obj, type, opt, g, paths, k, d, dm)
+function __testset_nouncertainty_mmf(edge_obj, type, cg, opt, g, paths, k, d, dm)
     @testset "Objective aggregation: min-max fair" begin
-        mt = ModelType(edge_obj, MinMaxFair(0.001), type, false, Automatic(), NoUncertaintyHandling(), NoUncertainty())
+        mt = ModelType(edge_obj, MinMaxFair(0.001), type, cg, Automatic(), NoUncertaintyHandling(), NoUncertainty())
         rd = RoutingData(g, k, opt, mt, traffic_matrix=dm, logmessage=(msg)->nothing)
         r = compute_routing(rd)
 
@@ -375,6 +375,8 @@ function __testset_nouncertainty_mmf(edge_obj, type, opt, g, paths, k, d, dm)
             @test collect(values(r.routings[1].path_flows[d])) ≈ [0.2857, 0.2857, 0.4285] atol=1.0e-4
         end
     end
+
+    # TODO: max-min.
 end
 
 # Required cones: SOCP (Kleinrock, α-fairness), EXP (α-fairness), POW (α-fairness).
@@ -398,8 +400,8 @@ k = SimpleDiGraph(4)
 add_edge!(k, 1, 4)
 d = Edge(1, 4)
 dm = Dict{Edge{Int}, Float64}(d => 4.0)
-    
-@testset "Formulation type: $type" for type in [FlowFormulation(), PathFormulation()]
+
+@testset "Formulation type: $type$(ifelse(cg, " with column generation", ""))" for (type, cg) in [(FlowFormulation(), false), (PathFormulation(), false), (PathFormulation(), true)]
     @testset "Edge-wise objective: $edge_obj" for edge_obj in [
             Load(), KleinrockLoad(), FortzThorupLoad(),
             AlphaFairness(0.0),
@@ -408,6 +410,12 @@ dm = Dict{Edge{Int}, Float64}(d => 4.0)
             AlphaFairness(1.5, true), AlphaFairness(1.5, false),
             AlphaFairness(2.0, true), AlphaFairness(2.0, false)
         ]
+        if cg && edge_obj != Load()
+            # No column generation for the nonlinear case.
+            # TODO: study something like http://liu.diva-portal.org/smash/get/diva2:841508/FULLTEXT01.pdf?
+            continue
+        end
+
         @testset "No uncertainty" begin
             opt = opt_ecos
             if typeof(edge_obj) == AlphaFairness && edge_obj.force_power_cone
@@ -416,14 +424,16 @@ dm = Dict{Edge{Int}, Float64}(d => 4.0)
             # opt = Mosek.Optimizer
             # opt = CPLEX.Optimizer
 
-            __testset_nouncertainty_minmax(edge_obj, type, opt, g, paths, k, d, dm)
-            __testset_nouncertainty_mintot(edge_obj, type, opt, g, paths, k, d, dm)
+            if ! cg # TODO: not yet implemented.
+                __testset_nouncertainty_minmax(edge_obj, type, cg, opt, g, paths, k, d, dm)
+                __testset_nouncertainty_mintot(edge_obj, type, cg, opt, g, paths, k, d, dm)
+            end
 
             if typeof(edge_obj) != AlphaFairness || (! edge_obj.force_power_cone && edge_obj.α != 0.0)
                 # Power-cone models cannot be solved to optimality with ECOS or SCS,
                 # and they also sometimes have problems with linear models.
                 if ! (typeof(edge_obj) == AlphaFairness && edge_obj.α >= 1.0) # TODO: MMF doesn't work there: a bug somewhere?
-                    __testset_nouncertainty_mmf(edge_obj, type, opt, g, paths, k, d, dm)
+                    __testset_nouncertainty_mmf(edge_obj, type, cg, opt, g, paths, k, d, dm)
                 end
             end
         end

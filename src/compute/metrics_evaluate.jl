@@ -9,7 +9,7 @@ function compute_loads(routing::Routing, demands::Dict{Edge{Int}, Float64})
                 load[e] += demands[demand] * routing.edge_flows[demand][e]
             end
         end
-        load[e] /= get_prop(rd.g, e, :capacity)
+        load[e] /= capacity(rd, e)
     end
     return load
 end

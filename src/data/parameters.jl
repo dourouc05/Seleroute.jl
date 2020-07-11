@@ -306,6 +306,20 @@ function remove_unsatisfiable_demands!(g::AbstractGraph, k::AbstractGraph)
     return length(to_remove)
 end
 
+function add_path!(rd::RoutingData, demand::Edge, path::Vector{Edge})
+    # Update RoutingData with the new path.
+    # All demands already have a path, by assumption. Otherwise, the
+    # master problem should not be feasible. Hence, computing the new
+    # path ID is easy: just take the length of the vector.
+    push!(rd.paths_edges, path)
+    path_id = length(rd.paths_edges)
+
+    rd.path_id_to_demand[path_id] = demand
+    push!(rd.demand_to_path_ids[demand], path_id)
+
+    return path_id
+end
+
 graph(rd::RoutingData) = rd.g
 edges(rd::RoutingData) = edges(rd.g)
 vertices(rd::RoutingData) = vertices(rd.g)
@@ -315,3 +329,5 @@ n_nodes(rd::RoutingData) = nv(rd.g)
 n_edges(rd::RoutingData) = ne(rd.g)
 n_demands(rd::RoutingData) = ne(rd.k)
 n_paths(rd::RoutingData) = length(rd.paths_edges)
+
+capacity(rd::RoutingData, e::Edge{Int}) = get_prop(rd.g, e, :capacity)

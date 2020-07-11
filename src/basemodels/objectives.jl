@@ -14,7 +14,7 @@ function objective_edge_expression(rm::RoutingModel, edge_obj::EdgeWiseObjective
 end
 
 function objective_edge_expression(rm::RoutingModel, ::Load, e::Edge, dm::Dict{Edge{Int}, Float64})
-    return total_flow_in_edge(rm, e, dm) / get_prop(rm.data.g, e, :capacity)
+    return total_flow_in_edge(rm, e, dm) / capacity(rm, e)
 end
 
 function objective_edge_expression(rm::RoutingModel, k::KleinrockLoad, e::Edge,

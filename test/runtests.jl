@@ -7,9 +7,11 @@ using LightGraphs, MetaGraphs
 using Seleroute
 
 @testset "Seleroute.jl" begin
-    include("topology.jl")
-    include("data_parameters.jl")
-    include("data_solution.jl")
+    @testset "Data" begin
+        include("data_topology.jl")
+        include("data_parameters.jl")
+        include("data_solution.jl")
+    end
     include("basemodels_knowncapacities.jl")
     @testset "Compute" begin
         include("compute_certain.jl")

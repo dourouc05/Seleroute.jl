@@ -376,7 +376,48 @@ function __testset_nouncertainty_mmf(edge_obj, type, cg, opt, g, paths, k, d, dm
         end
     end
 
-    # TODO: max-min.
+    @testset "Objective aggregation: max-min fair" begin
+        mt = ModelType(edge_obj, MaxMinFair(0.001), type, cg, Automatic(), NoUncertaintyHandling(), NoUncertainty())
+        rd = RoutingData(g, k, opt, mt, traffic_matrix=dm, logmessage=(msg)->nothing)
+        r = compute_routing(rd)
+
+        # Similar to __testset_nouncertainty_shared, but many things differ for
+        # MMF. Mostly, it's an iterative process.
+        @test r !== nothing
+        @test r.data == rd
+        @test r.n_iter in [1, 2]
+        @test r.n_matrices == 1
+        @test r.n_cuts == 0
+        @test r.n_columns == 0
+        @test r.time_precompute_ms > 0.0
+        @test r.total_time_solve_ms > 0.0
+        @test r.total_time_export_ms == 0.0
+        @test r.total_time_ms > 0.0
+        @test length(r.matrices) == 1
+        @test length(r.routings) in [1, 2]
+        @test length(r.objectives) in [1, 2]
+        @test r.master_model !== nothing
+        @test r.matrices[1][1] == dm
+
+        @test r.routings[1].data == rd
+        @test length(r.routings[1].demands) == ne(k) # Number of demands
+        @test r.routings[1].demands[1] == d
+        @test length(r.routings[1].paths) <= length(paths) # Number of paths
+        @test length(r.routings[1].paths) >= 1
+        @test length(r.routings[1].path_flows) == ne(k) # Number of demands
+        @test length(r.routings[1].path_flows[d]) in [1, 2, 3] # Number of paths
+        @test length(r.routings[1].edge_flows) == ne(k) # Number of demands
+        @test length(r.routings[1].edge_flows[d]) in [1, 3, 5] # Number of edges
+        # TODO: is something broken? 
+        # @test sum(x for x in values(r.routings[1].path_flows[d])) ≈ 1.0 atol=1.0e-5
+        #
+        # # Check that all paths are used, i.e. each of them sees at least 20% of the traffic.
+        # @test all(collect(values(r.routings[1].path_flows[d])) .>= 0.2)
+        #
+        # if typeof(edge_obj) != AlphaFairness # Probably due to poor accuracy.
+        #     @test collect(values(r.routings[1].path_flows[d])) ≈ [0.2857, 0.2857, 0.4285] atol=1.0e-4
+        # end
+    end
 end
 
 # Required cones: SOCP (Kleinrock, α-fairness), EXP (α-fairness), POW (α-fairness).

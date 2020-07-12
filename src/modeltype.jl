@@ -170,7 +170,7 @@ of each other):
 The exact algorithm used to solve the instance is based on those seven parameters.
 """
 struct ModelType
-    # TODO: integer vs. continuous flows? 
+    # TODO: integer vs. continuous flows?
     edge_obj::EdgeWiseObjectiveFunction
     agg_obj::AggregationObjectiveFunction
     type::FormulationType
@@ -227,13 +227,6 @@ struct ModelType
 
         return new(edge_obj, agg_obj, type, cg, algo, unc, uncparams)
     end
-end
-
-# In case you forgot about parentheses...
-function ModelType(edge_obj::Type, agg_obj::Type, type::Type, cg::Bool,
-                   algo::Type, unc::Type, uncparams::Type)
-    @warn "Deprecated"
-    return ModelType(edge_obj(), agg_obj(), type(), cg, algo(), unc(), uncparams())
 end
 
 function Base.copy(mt::ModelType)

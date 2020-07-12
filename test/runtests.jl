@@ -6,6 +6,8 @@ using LightGraphs, MetaGraphs
 
 using Seleroute
 
+struct TestEdgeWise <: EdgeWiseObjectiveFunction end
+
 @testset "Seleroute.jl" begin
     @testset "Data" begin
         include("data_modeltype.jl")
@@ -13,7 +15,10 @@ using Seleroute
         include("data_solution.jl")
         include("data_topology.jl")
     end
-    include("basemodels_knowncapacities.jl")
+    @testset "Base models" begin
+        include("basemodels_knowncapacities.jl")
+        include("basemodels_objectives.jl")
+    end
     @testset "Compute" begin
         include("compute_certain.jl")
         include("compute_oblivious_demand.jl")

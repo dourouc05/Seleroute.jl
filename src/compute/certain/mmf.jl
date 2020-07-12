@@ -30,7 +30,7 @@ function master_mmf_problem(m::Model, rd::RoutingData, edge_obj::EdgeWiseObjecti
     return rm
 end
 
-function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, agg_obj::Union{MinMaxFair, MaxMinFair}, type::FormulationType, cg::Val, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
+function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, agg_obj::Union{MinMaxFair, MaxMinFair}, type::FormulationType, cg::Val, algo::Automatic, unc::NoUncertaintyHandling, uncparams::NoUncertainty)
     # Implementation of the water-filling algorithm for MMF routings (aka MFMF).
     # https://ica1www.epfl.ch/PS_files/LEB3132.pdf
     # https://www.utc.fr/~dnace/recherche/Publication/Inoc03Nace.pdf

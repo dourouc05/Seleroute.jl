@@ -158,11 +158,17 @@
     end
 
     @testset "Objective functions: support_min/max" begin
+        @test ! supports_min(TestEdgeWise())
+        @test ! supports_max(TestEdgeWise())
+
         @test supports_min(Load())
         @test supports_max(Load())
 
         @test supports_min(KleinrockLoad())
         @test ! supports_max(KleinrockLoad())
+
+        @test supports_min(KleinrockLoad(true))
+        @test supports_max(KleinrockLoad(true))
 
         @test supports_min(FortzThorupLoad())
         @test ! supports_max(FortzThorupLoad())

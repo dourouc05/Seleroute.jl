@@ -14,7 +14,7 @@ end
 function total_flow_in_edge(rm::RoutingModel, e::Edge, dm::Dict{Edge{Int}, Float64}, ::PathFormulation, ::Val{UnitaryFlows})
     flow = AffExpr(0.0)
 
-    paths = _find_path_ids_with_edge(rm.data, e)
+    paths = find_path_ids_with_edge(rm.data, e)
     for p in paths
         d = rm.data.path_id_to_demand[p]
         if d in keys(dm) && ! iszero(dm[d])
@@ -26,7 +26,7 @@ function total_flow_in_edge(rm::RoutingModel, e::Edge, dm::Dict{Edge{Int}, Float
 end
 
 function total_flow_in_edge(rm::RoutingModel, e::Edge, ::PathFormulation, ::Val{UnscaledFlows})
-    paths = _find_path_ids_with_edge(rm.data, e)
+    paths = find_path_ids_with_edge(rm.data, e)
     if isempty(paths) # sum() over an empty array throws an error...
         return AffExpr(0.0)
     end

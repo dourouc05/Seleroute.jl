@@ -285,7 +285,7 @@ function path_routing_to_flow(data::RoutingData, routing::AbstractMatrix{Float64
         edge_flows[demand] = Dict{Edge{Int}, Float64}()
         for edge in edges(data)
             total_weight = zero(Float64)
-            for p_id in _find_path_ids_with_edge(data, edge)
+            for p_id in find_path_ids_with_edge(data, edge)
                 if data.path_id_to_demand[p_id] == demand
                     total_weight += routing[demand, p_id]
                 end

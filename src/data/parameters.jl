@@ -331,3 +331,13 @@ n_demands(rd::RoutingData) = ne(rd.k)
 n_paths(rd::RoutingData) = length(rd.paths_edges)
 
 capacity(rd::RoutingData, e::Edge{Int}) = get_prop(rd.g, e, :capacity)
+
+function find_path_ids_with_edge(rd::RoutingData, e::Edge)
+    if n_paths(rd) > 0
+        return filter(1:n_paths(rd)) do p
+            e in rd.paths_edges[p]
+        end
+    else
+        error("Precomputed paths are not available. Are you trying to use this function in a flow-based formulation?")
+    end
+end

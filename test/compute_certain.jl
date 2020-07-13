@@ -408,7 +408,7 @@ function __testset_nouncertainty_mmf(edge_obj, type, cg, opt, g, paths, k, d, dm
         @test length(r.routings[1].path_flows[d]) in [1, 2, 3] # Number of paths
         @test length(r.routings[1].edge_flows) == ne(k) # Number of demands
         @test length(r.routings[1].edge_flows[d]) in [1, 3, 5] # Number of edges
-        # TODO: is something broken? 
+        # TODO: is something broken?
         # @test sum(x for x in values(r.routings[1].path_flows[d])) ≈ 1.0 atol=1.0e-5
         #
         # # Check that all paths are used, i.e. each of them sees at least 20% of the traffic.
@@ -454,6 +454,7 @@ dm = Dict{Edge{Int}, Float64}(d => 4.0)
         if cg && edge_obj != Load()
             # No column generation for the nonlinear case.
             # TODO: study something like http://liu.diva-portal.org/smash/get/diva2:841508/FULLTEXT01.pdf?
+            # TODO: or like https://www.jstor.org/stable/2628397?seq=1? 
             continue
         end
 

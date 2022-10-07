@@ -1,17 +1,17 @@
 module Seleroute
 
 using JuMP
-using LightGraphs, MetaGraphs
+using Graphs, MetaGraphs
 using Compose, Colors, GraphPlot, Cairo, Fontconfig
 
 using Printf, Statistics, LinearAlgebra, SparseArrays, DelimitedFiles, Random
 import Base: summary, getindex
-import LightGraphs: edges, vertices
+import Graphs: edges, vertices
 # import JuMP: copy_model
 
 const MOF = MOI.FileFormats
 
-const AbstractSimpleGraph = LightGraphs.AbstractSimpleGraph
+const AbstractSimpleGraph = Graphs.AbstractSimpleGraph
 
 
 inedges(g, v) = [Edge(iv, v) for iv in inneighbors(g, v)]

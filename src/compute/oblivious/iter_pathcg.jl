@@ -14,8 +14,8 @@ function _check_weight_matrix(weight_matrix)
     return ! all(weight_matrix .<= CPLEX_REDUCED_COST_TOLERANCE)
 end
 
-function _build_path(state::LightGraphs.AbstractPathState, demand::Edge)
-    # TODO: use LightGraphs.enumerate_paths? It returns lists of vertices and not edges...
+function _build_path(state::Graphs.AbstractPathState, demand::Edge)
+    # TODO: use Graphs.enumerate_paths? It returns lists of vertices and not edges...
     reverse_nodes = [dst(demand)]
     current_node = dst(demand)
     while current_node != src(demand)

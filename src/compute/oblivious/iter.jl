@@ -13,7 +13,7 @@ end
 
 function ConsideredTrafficMatrix(objective::Float64, edge::Edge, matrix::JuMP.Containers.DenseAxisArray)
     # Complete type for matrix:
-    # {Float64,1,Tuple{LightGraphs.SimpleGraphs.SimpleEdgeIter{SimpleDiGraph{Int64}}},Tuple{Dict{LightGraphs.SimpleGraphs.SimpleEdge{Int64},Int64}}}
+    # {Float64,1,Tuple{Graphs.SimpleGraphs.SimpleEdgeIter{SimpleDiGraph{Int64}}},Tuple{Dict{Graphs.SimpleGraphs.SimpleEdge{Int64},Int64}}}
     matrix_as_dict = Dict(k => matrix[k] for k in keys(matrix))
     return ConsideredTrafficMatrix(objective, edge, matrix_as_dict)
 end

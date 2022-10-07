@@ -11,7 +11,7 @@
 
 include("topologies.jl")
 
-using PrettyTables, LightGraphs, DelimitedFiles
+using PrettyTables, Graphs, DelimitedFiles
 using JuMP, CPLEX, Gurobi, Mosek, MosekTools
 
 # opt = CPLEX.Optimizer

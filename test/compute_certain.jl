@@ -274,7 +274,7 @@ function __testset_nouncertainty_mintot(edge_obj, type, cg, opt, g, paths, k, d,
                 # and yields the same solution as for the SOCP formulation.
                 @test status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]
                 if status == MOI.OPTIMAL
-                    @test r.objectives[1] ≈ 8.326663 atol=1.0e-5
+                    @test r.objectives[1] ≈ 8.326663 atol=1.0e-3
                 end
             else
                 @test_broken status in [MOI.OPTIMAL, MOI.ALMOST_OPTIMAL]

@@ -91,9 +91,9 @@ milliseconds):
     of the master problem (or the only problem, if the algorithm is not
 	iterative). In particular, this does not include instanciation of
 	subproblems.
+  * `time_solve_ms`: time to compute the routing, one value per iteration.
   * `total_time_solve_ms`: total time spent in solving.
     (This field is computed and not explicitly stored in the object.)
-  * `time_solve_ms`: time to compute the routing, one value per iteration.
   * `time_intermediate_export_ms`: time to export the intermediate results,
     when requested, one value per iteration where there is export.
   * `time_final_export_ms`: time to export the final solution, when requested.
@@ -116,7 +116,8 @@ to be the most likely case.
   * `routings`: the various routings generated during the execution. There must
     be at most one routing per iteration, except when requested.
   * `master_model`: the final optimisation model, with all generated cuts and
-    columns. Solving it should give the same solution as `routings[end]`.
+    columns (if relevant for the algorithm being used). Solving it should give
+    the same solution as `routings[end]`.
 """
 struct RoutingSolution
     data::RoutingData

@@ -97,7 +97,7 @@ function _mintotload_solve_pricing_problem_master(rd::RoutingData,
         end
 
         # Compute the shortest path for this demand.
-        state = desopo_pape_shortest_paths(rd.g, src(demand), weight_matrix)
+        state = dijkstra_shortest_paths(rd.g, src(demand), weight_matrix)
 
         # Is there a solution? Has this path a negative reduced cost?
         if all(state.parents .== 0)
@@ -218,7 +218,7 @@ function _minmaxload_solve_pricing_problem_master(rd::RoutingData,
         end
 
         # Compute the shortest path for this demand.
-        state = desopo_pape_shortest_paths(rd.g, src(demand), weight_matrix)
+        state = dijkstra_shortest_paths(rd.g, src(demand), weight_matrix)
 
         # Is there a solution? Has this path a negative reduced cost?
         if all(state.parents .== 0)

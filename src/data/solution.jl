@@ -224,7 +224,7 @@ function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64
         weight_e(e) = get_prop(ug, e, :weight)
         while ne(ug) > 0
             # Get a path arbitrarily (easiest to compute: shortest one)
-            sp = desopo_pape_shortest_paths(ug, src(d))
+            sp = dijkstra_shortest_paths(ug, src(d))
             path_vertices = enumerate_paths(sp, dst(d))
             path = map(Edge, zip(path_vertices[1:end-1], path_vertices[2:end]))
             if length(path) == 0

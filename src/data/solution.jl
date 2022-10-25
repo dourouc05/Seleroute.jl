@@ -168,10 +168,10 @@ function RoutingSolution(data::RoutingData;
 						 time_solve_ms::Union{Float64, Vector{Float64}, Dict{Int, Float64}}=0.0,
 						 time_intermediate_export_ms::Union{Float64, Vector{Float64}, Dict{Int, Float64}}=Dict{Int, Float64}(),
 						 time_final_export_ms::Float64=0.0,
-						 objectives::Union{Float64, Vector{Float64}, Dict{Int, Float64}}=error("Missing parameter `objectives` when building a `RoutingSolution` object"),
+						 objectives::Union{Float64, Vector{Float64}, Dict{Int, Float64}},
 						 matrices::Union{Dict{Edge{Int}, Float64}, Vector{Dict{Edge{Int}, Float64}}, Dict{Int, Vector{Dict{Edge{Int}, Float64}}}}=Dict{Edge{Int}, Float64}(),
-						 routings::Union{Routing, Vector{Routing}, Dict{Int, Routing}}=error("Missing parameter `routings` when building a `RoutingSolution` object"),
-						 master_model::RoutingModel=error("Missing parameter `master_model` when building a `RoutingSolution` object")
+						 routings::Union{Routing, Vector{Routing}, Dict{Int, Routing}},
+						 master_model::RoutingModel
 						)
     return RoutingSolution(data,
 	                       result,

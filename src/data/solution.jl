@@ -165,12 +165,29 @@ function RoutingSolution(data::RoutingData;
                          n_columns::Int=0,
                          time_precompute_ms::Float64=0.0,
 						 time_create_master_model_ms::Float64=0.0,
-						 time_solve_ms::Union{Float64, Vector{Float64}, Dict{Int, Float64}}=0.0,
-						 time_intermediate_export_ms::Union{Float64, Vector{Float64}, Dict{Int, Float64}}=Dict{Int, Float64}(),
+						 time_solve_ms::Union{
+                             Float64,
+                             Vector{Float64},
+                             Dict{Int, Float64}
+                         }=0.0,
+						 time_intermediate_export_ms::Union{
+                             Float64,
+                             Vector{Float64},
+                             Dict{Int, Float64}
+                         }=Dict{Int, Float64}(),
 						 time_final_export_ms::Float64=0.0,
-						 objectives::Union{Float64, Vector{Float64}, Dict{Int, Float64}},
-						 matrices::Union{Dict{Edge{Int}, Float64}, Vector{Dict{Edge{Int}, Float64}}, Dict{Int, Vector{Dict{Edge{Int}, Float64}}}}=Dict{Edge{Int}, Float64}(),
-						 routings::Union{Routing, Vector{Routing}, Dict{Int, Routing}},
+						 objectives::Union{
+                             Float64, Vector{Float64},
+                             Dict{Int, Float64}},
+						 matrices::Union{
+                             Dict{Edge{Int}, Float64},
+                             Vector{Dict{Edge{Int}, Float64}},
+                             Dict{Int, Vector{Dict{Edge{Int}, Float64}}}
+                         }=Dict{Edge{Int}, Float64}(),
+						 routings::Union{
+                             Routing,
+                             Vector{Routing},
+                             Dict{Int, Routing}},
 						 master_model::RoutingModel
 						)
     return RoutingSolution(data,

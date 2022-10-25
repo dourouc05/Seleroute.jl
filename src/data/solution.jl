@@ -188,7 +188,7 @@ function RoutingSolution(data::RoutingData;
 						   master_model)
 end
 
-function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64}; demand=nothing, ε::Float64=1.e-5)
+function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64}; ε::Float64=1.e-5)
     if data.model_type.type != FlowFormulation()
         error("This function can only be used for flow-based formulations; it makes no sense for formulation type $(data.model_type)")
     end

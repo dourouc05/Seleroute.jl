@@ -48,6 +48,8 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     routings = Routing[]
     objectives = Float64[]
     times_ms = Float64[]
+    times_master_ms = Float64[]
+    times_sub_ms = Float64[]
     end_status = MOI.OPTIMAL
 
     # Iteratively solve it by removing τ constraints and fixing the values of
@@ -56,13 +58,20 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     fixed_objectives = Dict{Edge{Int}, Float64}()
 
     while length(edges_to_do) > 0
+        time_to_solve_master = 0.0
+        time_to_solve_sub = 0.0
+
         start = time_ns()
 
         # Optimise for this iteration, possibly using column generation.
+        # When there is no column generation, this loop only executes once.
         cg_it = 0
         while true
-            # Actual optimisation
+            # Actual optimisation of the master problems.
+            start_master = time_ns()
             optimize!(m)
+            time_to_solve_master += (time_ns() - start_master) / 1_000_000.
+
             status = termination_status(m)
             _export_lp_if_allowed(rd, m, "lp_$(n_iter)_$(cg_it)")
 
@@ -81,12 +90,10 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
                 end
             end
 
-            # Quit if no column generation process allowed.
+            # Perform some column generation if need be, quit otherwise.
             if cg == Val(false)
                 break
             end
-
-            # Perform some column generation if need be.
             @assert typeof(type) <: PathFormulation
 
             # First, the pricing.
@@ -94,7 +101,9 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
             dual_values_capacity = Dict(e => dual(rm.constraints_capacity[e]) for e in edges(rd)) # Edge -> dual value
             dual_values_mmf = Dict(e => dual(rm.constraints_mmf[e]) for e in edges(rd)) # Edge -> dual value
 
+            start_sub = time_ns()
             new_paths = _mmf_solve_pricing_problem(rd, dual_values_capacity, dual_values_mmf, dual_value_convexity)
+            time_to_solve_sub += (time_ns() - start_sub) / 1_000_000.
             n_new_paths += length(new_paths)
 
             # Add the new columns to the formulation.
@@ -127,6 +136,8 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         # Report the values for this iteration.
         master_τ = objective_value(m)
         rd.logmessage("[$(n_iter)] Status: $(status). Value: $(master_τ)")
+        push!(times_master_ms, time_to_solve_master)
+        push!(times_sub_ms, time_to_solve_sub)
         push!(routings, Routing(rd, value.(rm.routing)))
         push!(objectives, master_τ)
 
@@ -176,7 +187,10 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     return RoutingSolution(rd, result=end_status,
                            time_precompute_ms=rd.time_precompute_ms,
                            time_create_master_model_ms=time_create_master_model_ms,
+                           time_create_subproblems_model_ms=0.0, # No subproblem, only shortest paths.
                            time_solve_ms=times_ms,
+                           time_solve_master_model_ms=times_master_ms,
+                           time_solve_subproblems_model_ms=times_sub_ms,
                            n_columns=n_new_paths,
                            objectives=objectives,
                            matrices=rd.traffic_matrix,

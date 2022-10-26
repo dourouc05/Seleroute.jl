@@ -20,12 +20,14 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::Formulatio
     # Solve the problem.
     start = time_ns()
     optimize!(m)
-    stop = time_ns()
+
+    solve_time = (time_ns() - start) / 1_000_000.
 
     return RoutingSolution(rd,
                            time_precompute_ms=rd.time_precompute_ms,
                            time_create_master_model_ms=time_create_master_model_ms,
-                           time_solve_ms=(stop - start) / 1_000_000.,
+                           time_solve_ms=solve_time,
+                           time_solve_master_model_ms=solve_time,
                            objectives=objective_value(m),
                            matrices=rd.traffic_matrix,
                            routings=Routing(rd, value.(rm.routing)),
@@ -64,13 +66,19 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         @objective(m, Max, obj)
     end
 
+    time_create_master_model_ms = (time_ns() - start) / 1_000_000.
+
     # Done!
+    start = time_ns()
     optimize!(m)
-    stop = time_ns()
+
+    solve_time = (time_ns() - start) / 1_000_000.
 
     return RoutingSolution(rd,
                            time_precompute_ms=rd.time_precompute_ms,
-                           time_solve_ms=(stop - start) / 1_000_000.,
+                           time_create_master_model_ms=time_create_master_model_ms,
+                           time_solve_ms=solve_time,
+                           time_solve_master_model_ms=solve_time,
                            objectives=objective_value(m),
                            matrices=rd.traffic_matrix,
                            routings=Routing(rd, value.(rm.routing)),
@@ -109,13 +117,19 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         @objective(m, Max, obj)
     end
 
+    time_create_master_model_ms = (time_ns() - start) / 1_000_000.
+
     # Done!
+    start = time_ns()
     optimize!(m)
-    stop = time_ns()
+
+    solve_time = (time_ns() - start) / 1_000_000.
 
     return RoutingSolution(rd,
                            time_precompute_ms=rd.time_precompute_ms,
-                           time_solve_ms=(stop - start) / 1_000_000.,
+                           time_create_master_model_ms=time_create_master_model_ms,
+                           time_solve_ms=solve_time,
+                           time_solve_master_model_ms=solve_time,
                            objectives=objective_value(m),
                            matrices=rd.traffic_matrix,
                            routings=Routing(rd, value.(rm.routing)),

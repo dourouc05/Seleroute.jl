@@ -21,6 +21,8 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     routings = Routing[]
     objectives = Float64[]
     times_ms = Float64[]
+    times_master_ms = Float64[]
+    times_sub_ms = Float64[]
     n_new_paths = 0
     n_iter = 0
 
@@ -28,7 +30,9 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         start = time_ns()
 
         # Optimise for the current iteration.
+        start_master = time_ns()
         optimize!(m)
+        end_master = time_ns()
 
         push!(routings, Routing(rd, value.(rm.routing)))
         push!(objectives, objective_value(m))
@@ -37,7 +41,9 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         dual_value_convexity = dual.(rm.constraints_convexity) # Demand -> dual value
         dual_values_capacity = Dict(e => dual(rm.constraints_capacity[e]) for e in edges(rd)) # Edge -> dual value
 
+        start_sub = time_ns()
         new_paths = _mintotload_solve_pricing_problem_master(rd, dual_values_capacity, dual_value_convexity)
+        end_sub = time_ns()
         n_new_paths += length(new_paths)
 
         # Add the new columns to the formulation.
@@ -54,6 +60,8 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         rd.logmessage("[$(n_iter)] Added $(length(new_paths)) new paths.")
         n_iter += 1
         push!(times_ms, (time_ns() - start) / 1_000_000.)
+        push!(times_master_ms, (end_master - start_master) / 1_000_000.)
+        push!(times_sub_ms, (end_sub - start_sub) / 1_000_000.)
 
         if length(new_paths) == 0
             break
@@ -63,7 +71,10 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     return RoutingSolution(rd,
                            time_precompute_ms=rd.time_precompute_ms,
                            time_create_master_model_ms=time_create_master_model_ms,
+                           time_create_subproblems_model_ms=0.0, # No subproblem, only shortest paths.
                            time_solve_ms=times_ms,
+                           time_solve_master_model_ms=times_master_ms,
+                           time_solve_subproblems_model_ms=times_sub_ms,
                            objectives=objective_value(m),
                            n_columns=n_new_paths,
                            matrices=rd.traffic_matrix,
@@ -121,7 +132,7 @@ function _mintotload_solve_pricing_problem_master(rd::RoutingData,
     return paths
 end
 
-function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, agg_obj::MinimumTotal, ::PathFormulation, ::Val{true}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
+function compute_routing(rd::RoutingData, ::EdgeWiseObjectiveFunction, ::MinimumTotal, ::PathFormulation, ::Val{true}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
     start = time_ns()
 
     # Create the problem.
@@ -142,6 +153,8 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     routings = Routing[]
     objectives = Float64[]
     times_ms = Float64[]
+    times_master_ms = Float64[]
+    times_sub_ms = Float64[]
     n_new_paths = 0
     n_iter = 0
 
@@ -149,7 +162,9 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         start = time_ns()
 
         # Optimise for the current iteration.
+        start_master = time_ns()
         optimize!(m)
+        end_master = time_ns()
 
         push!(routings, Routing(rd, value.(rm.routing)))
         push!(objectives, objective_value(m))
@@ -158,7 +173,9 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         dual_value_convexity = dual.(rm.constraints_convexity) # Demand -> dual value
         dual_values_capacity = Dict(e => dual(rm.constraints_capacity[e]) for e in edges(rd)) # Edge -> dual value
 
+        start_sub = time_ns()
         new_paths = _minmaxload_solve_pricing_problem_master(rd, dual_values_capacity, dual_value_convexity)
+        end_sub = time_ns()
         n_new_paths += length(new_paths)
 
         # Add the new columns to the formulation.
@@ -175,6 +192,8 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         rd.logmessage("[$(n_iter)] Added $(length(new_paths)) new paths.")
         n_iter += 1
         push!(times_ms, (time_ns() - start) / 1_000_000.)
+        push!(times_master_ms, (end_master - start_master) / 1_000_000.)
+        push!(times_sub_ms, (end_sub - start_sub) / 1_000_000.)
 
         if length(new_paths) == 0
             break
@@ -182,11 +201,14 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     end
 
     return RoutingSolution(rd,
-                           time_create_master_model_ms=time_create_master_model_ms,
-                           time_precompute_ms=rd.time_precompute_ms,
-                           time_solve_ms=(stop - start) / 1_000_000.,
-                           objectives=objective_value(m),
                            n_columns=n_new_paths,
+                           time_precompute_ms=rd.time_precompute_ms,
+                           time_create_master_model_ms=time_create_master_model_ms,
+                           time_create_subproblems_model_ms=0.0, # No subproblem, only shortest paths.
+                           time_solve_ms=times_ms,
+                           time_solve_master_model_ms=times_master_ms,
+                           time_solve_subproblems_model_ms=times_sub_ms,
+                           objectives=objective_value(m),
                            matrices=rd.traffic_matrix,
                            routings=Routing(rd, value.(rm.routing)),
                            master_model=rm)

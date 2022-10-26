@@ -100,13 +100,18 @@ milliseconds), with a granularity at most for master-problem iterations
     dedicated algorithms (such as shortest paths), this time will be zero,
     but not the solve times.
   * `time_solve_ms`: time to compute the routing, one value per iteration.
+    This time may include more operations than solving the master and
+    subproblems, such as bookkeeping or modifying the master formulation 
+    following the subproblems (new columns/rows).
   * `time_solve_master_model_ms`: time to compute the routing spent in
-    the master problem, one value per iteration.
+    the master problem, one value per iteration. Only time spent in the solver
+    is counted here.
   * `time_solve_subproblems_model_ms`: time to compute the routing spent in
     the subproblems if any, one value per iteration of the master problem. If
     several subproblems are solved for one iteration of the master problem,
     the total time for these subproblems is reported (i.e. only one value in
-    this dictionary per iteration of the master problem).
+    this dictionary per iteration of the master problem). Only time spent in
+    the solver is counted here.
   * `total_time_solve_ms`: total time spent in solving.
     (This field is computed and not explicitly stored in the object.)
   * `total_time_solve_master_model_ms`: total time spent in solving the master

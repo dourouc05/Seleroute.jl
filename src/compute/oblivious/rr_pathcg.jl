@@ -12,7 +12,9 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
     n_new_paths = 0
     routings = Routing[]
     objectives = Float64[]
-    times_solve = Float64[]
+    times_ms = Float64[]
+    times_master_ms = Float64[]
+    times_sub_ms = Float64[]
 
     # Main loop.
     while true
@@ -21,6 +23,8 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
         # Solve the current master problem.
         m = rm.model
         optimize!(m)
+
+        push!(times_master_ms, (time_ns() - start) / 1_000_000.)
         status = termination_status(m)
         push!(routings, Routing(rd, value.(rm.routing)))
         push!(objectives, objective_value(m))
@@ -41,7 +45,9 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
             end
         end
 
+        start_sub = time_ns()
         new_paths = _oblivious_reformulation_solve_pricing_problem(rd, dual_values_uncer, dual_value_convexity)
+        push!(times_sub_ms, (time_ns() - start_sub) / 1_000_000.)
         n_new_paths += length(new_paths)
 
         # Add the new columns to the formulation.
@@ -63,7 +69,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
             end
         end
 
-        push!(times_solve, (time_ns() - start) / 1_000_000.)
+        push!(times_ms, (time_ns() - start) / 1_000_000.)
 
         if length(new_paths) == 0
             break
@@ -85,14 +91,15 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
         Dict{Edge{Int}, Float64}[]
     end
 
-    stop = time_ns()
-
     # TODO: Export things like the normal case.
 
     return RoutingSolution(rd,
                            time_precompute_ms=rd.time_precompute_ms,
                            time_create_master_model_ms=time_create_master_model_ms,
-                           time_solve_ms=times_solve,
+                           time_create_subproblems_model_ms=0.0, # No subproblem, only shortest paths.
+                           time_solve_ms=times_ms,
+                           time_solve_master_model_ms=times_master_ms,
+                           time_solve_subproblems_model_ms=times_sub_ms,
                            objectives=objectives,
                            matrices=matrices,
                            routings=routings,

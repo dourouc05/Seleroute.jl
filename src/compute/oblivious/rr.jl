@@ -20,8 +20,9 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, formulation:
     time_create_master_model_ms = (time_ns() - start) / 1_000_000.
 
     # Solve the problem and generate the output data structure.
-    start = time_ns()
+    start_master = time_ns()
     optimize!(rm.model)
+    end_master = time_ns()
     rd.logmessage(objective_value(rm.model))
     status = termination_status(rm.model)
 
@@ -44,6 +45,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, formulation:
                            time_precompute_ms=rd.time_precompute_ms,
                            time_create_master_model_ms=time_create_master_model_ms,
                            time_solve_ms=(stop - start) / 1_000_000.,
+                           time_solve_master_model_ms=(end_master - start_master) / 1_000_000.,
                            objectives=[objective_value(rm.model)],
                            matrices=matrices,
                            routings=Routing(rd, value.(rm.routing)),

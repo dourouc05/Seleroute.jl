@@ -137,6 +137,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
     @objective(m, Min, mu)
 
     time_create_master_model_ms = (time_ns() - start) / 1_000_000.
+    time_create_sub_model_ms = 0.0 # Updated each time a submodel is created.
 
     # Initialise data structures to hold all intermediate results.
     objectives = Float64[]
@@ -146,7 +147,9 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
     it = 1
     total_cuts = 0
     total_new_paths = 0
-    time_solve_ms = Float64[]
+    times_ms = Float64[]
+    times_master_ms = Float64[]
+    times_sub_ms = Float64[]
 
     # Start the oblivious loop.
     while true
@@ -154,6 +157,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
 
         # Solve the current master problem, possibly with column generation.
         result, current_routing, n_new_paths = solve_master_problem(rd, rm, rd.model_type)
+        push!(times_master_ms, (time_ns() - start) / 1_000_000.)
         total_new_paths += n_new_paths
 
         # Export if needed.
@@ -172,6 +176,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
         # the process is done.
         rd.logmessage("Solving the subproblem... $(n_edges(rd)) iterations to perform sequentially")
         interesting_matrices = ConsideredTrafficMatrix[]
+        push!(times_sub_ms, 0.0)
 
         n_edges_done = 0
         n_new_paths_this_iter = 0
@@ -181,10 +186,15 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
             end
 
             # Solve the corresponding separation problem.
+            # TODO: what about creating these models beforehand? Too much memory?
+            start_sub_model = time_ns()
             s_m = _create_model(rd)
             s_rm = oblivious_subproblem_model(s_m, rd, e_bar, current_routing, type)
+            time_create_sub_model_ms += (time_ns() - start_sub_model) / 1_000_000.
 
+            start_sub_solve = time_ns()
             s_result, n_sub_new_paths, candidate_matrix = solve_subproblem(rd, rm, s_rm, e_bar, Load(), MinimumMaximum(), type, cg, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
+            times_sub_ms[end] += (time_ns() - start_sub_solve) / 1_000_000.
             n_new_paths_this_iter += n_sub_new_paths
             total_new_paths += n_sub_new_paths
 
@@ -244,7 +254,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
         rd.logmessage("Added $(n_new_paths_this_iter) more path$(ifelse(n_new_paths_this_iter == 1, "", "s")) for the subproblems!")
 
         # Record the time for this iteration.
-        push!(time_solve_ms, (time_ns() - start) / 1_000_000.)
+        push!(times_ms, (time_ns() - start) / 1_000_000.)
 
         # If needed, plot the results. Don't plot for the last iteration,
         # as this is automatically performed (the whole solution is always
@@ -260,7 +270,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
 
     # Do the final round of plotting.
     rd.logmessage("== DBG == Starting to plot the results...")
-    # plot(rd, routings[end], basename="$(rd.output_folder)/graph_final")
+    # plot(rd, routings[end], basename="$(rd.output_folder)/graph_final") # TODO: reintroduce.
     # rd.logmessage("== DBG == Generating the textual summary...")
     # summary(rd, routings[1], routings[end], filename="$(rd.output_folder)/psummary.txt")
     rd.logmessage("== DBG == Exporting the solution...")
@@ -273,7 +283,10 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
                            n_columns=total_new_paths,
                            time_precompute_ms=rd.time_precompute_ms,
                            time_create_master_model_ms=time_create_master_model_ms,
-                           time_solve_ms=time_solve_ms,
+                           time_create_subproblems_model_ms=time_create_sub_model_ms,
+                           time_solve_ms=times_ms,
+                           time_solve_master_model_ms=times_master_ms,
+                           time_solve_subproblems_model_ms=times_sub_ms,
                            objectives=objectives,
                            matrices=matrices,
                            routings=routings,

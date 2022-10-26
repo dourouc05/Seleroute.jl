@@ -1,3 +1,4 @@
+# TODO: replace this with a solver-agnostic tolerance?
 # https://www.ibm.com/support/knowledgecenter/SSSA5P_12.10.0/ilog.odms.cplex.help/CPLEX/Parameters/topics/EpOpt.html
 const CPLEX_REDUCED_COST_TOLERANCE = 1.0e-6
 

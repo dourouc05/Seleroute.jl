@@ -189,6 +189,7 @@ function Base.getproperty(obj::RoutingSolution, sym::Symbol)
         return sum(values(obj.time_intermediate_export_ms)) +
             obj.time_final_export_ms
     elseif sym === :total_time_ms
+        # TODO: is the code uniform enough for this to make sense with subproblem modelling? (Sometimes done before solving each subproblem.)
         return obj.time_precompute_ms +
             obj.time_create_master_model_ms +
             sum(values(obj.time_solve_ms)) +

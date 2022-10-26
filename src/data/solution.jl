@@ -78,8 +78,9 @@ All information from intermediate iterations are kept within this object.
   * `n_columns`: the number of added columns, for column-generation based
     algorithms. Its value should be 0 for other algorithms.
 
-Three different timings are measured for the whole execution (always in
-milliseconds):
+Many different timings are measured for the whole execution (always in
+milliseconds), with a granularity at most for master-problem iterations
+(totals are also provided):
 
   * `time_precompute_ms`: time to prepare the data structures before the actual
     computations. For instance, it may account for detection of loops or
@@ -91,8 +92,28 @@ milliseconds):
     of the master problem (or the only problem, if the algorithm is not
     iterative). In particular, this does not include instanciation of
     subproblems.
+  * `time_create_subproblems_model_ms`: time to create the mathematical
+    formulation of the subproblem(s) (if the algorithm uses at least one).
+    If the algorithm does not use subproblem(s), the value is zero. If the
+    algorithm uses several different subproblems, this variable reports the
+    total time for all subproblems. If the subproblems are solved using
+    dedicated algorithms (such as shortest paths), this time will be zero,
+    but not the solve times.
   * `time_solve_ms`: time to compute the routing, one value per iteration.
+  * `time_solve_master_model_ms`: time to compute the routing spent in
+    the master problem, one value per iteration.
+  * `time_solve_subproblems_model_ms`: time to compute the routing spent in
+    the subproblems if any, one value per iteration of the master problem. If
+    several subproblems are solved for one iteration of the master problem,
+    the total time for these subproblems is reported (i.e. only one value in
+    this dictionary per iteration of the master problem).
   * `total_time_solve_ms`: total time spent in solving.
+    (This field is computed and not explicitly stored in the object.)
+  * `total_time_solve_master_model_ms`: total time spent in solving the master
+    model.
+    (This field is computed and not explicitly stored in the object.)
+  * `total_time_solve_subproblems_model_ms`: total time spent in solving the
+    subproblems.
     (This field is computed and not explicitly stored in the object.)
   * `time_intermediate_export_ms`: time to export the intermediate results,
     when requested, one value per iteration where there is export.
@@ -127,7 +148,10 @@ struct RoutingSolution
 
     time_precompute_ms::Float64
     time_create_master_model_ms::Float64
+    time_create_subproblems_model_ms::Float64
     time_solve_ms::Dict{Int, Float64}
+    time_solve_master_model_ms::Dict{Int, Float64}
+    time_solve_subproblems_model_ms::Dict{Int, Float64}
     time_intermediate_export_ms::Dict{Int, Float64}
     time_final_export_ms::Float64
 
@@ -144,6 +168,10 @@ function Base.getproperty(obj::RoutingSolution, sym::Symbol)
         return length(obj.time_solve_ms)
     elseif sym === :total_time_solve_ms
         return sum(values(obj.time_solve_ms))
+    elseif sym === :total_time_solve_master_model_ms
+        return sum(values(obj.time_solve_master_model_ms))
+    elseif sym === :total_time_solve_subproblems_model_ms
+        return sum(values(obj.time_solve_subproblems_model_ms))
     elseif sym === :total_time_export_ms
         return sum(values(obj.time_intermediate_export_ms)) +
             obj.time_final_export_ms
@@ -178,7 +206,18 @@ function RoutingSolution(data::RoutingData;
                          n_columns::Int=0,
                          time_precompute_ms::Float64=0.0,
                          time_create_master_model_ms::Float64=0.0,
+                         time_create_subproblems_model_ms::Float64=0.0,
                          time_solve_ms::Union{
+                             Float64,
+                             Vector{Float64},
+                             Dict{Int, Float64}
+                         }=0.0,
+                         time_solve_master_model_ms::Union{
+                             Float64,
+                             Vector{Float64},
+                             Dict{Int, Float64}
+                         }=0.0,
+                         time_solve_subproblems_model_ms::Union{
                              Float64,
                              Vector{Float64},
                              Dict{Int, Float64}
@@ -209,7 +248,12 @@ function RoutingSolution(data::RoutingData;
                            n_columns,
                            time_precompute_ms,
                            time_create_master_model_ms,
+                           time_create_subproblems_model_ms,
                            _parse_routingsolution_input(time_solve_ms),
+                           _parse_routingsolution_input(
+                               time_solve_master_model_ms),
+                           _parse_routingsolution_input(
+                               time_solve_subproblems_model_ms),
                            _parse_routingsolution_input(
                                time_intermediate_export_ms),
                            time_final_export_ms,

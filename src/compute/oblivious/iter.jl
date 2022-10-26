@@ -147,6 +147,8 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
     it = 1
     total_cuts = 0
     total_new_paths = 0
+    total_new_paths_master = 0
+    total_new_paths_sub = 0
     times_ms = Float64[]
     times_master_ms = Float64[]
     times_sub_ms = Float64[]
@@ -159,6 +161,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
         result, current_routing, n_new_paths = solve_master_problem(rd, rm, rd.model_type)
         push!(times_master_ms, (time_ns() - start) / 1_000_000.)
         total_new_paths += n_new_paths
+        total_new_paths_master += n_new_paths
 
         # Export if needed.
         _export_lp_if_allowed(rd, m, "lp_master_$(it)")
@@ -197,6 +200,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
             times_sub_ms[end] += (time_ns() - start_sub_solve) / 1_000_000.
             n_new_paths_this_iter += n_sub_new_paths
             total_new_paths += n_sub_new_paths
+            total_new_paths_sub += n_sub_new_paths
 
             # Export if needed.
             _export_lp_if_allowed(rd, s_m, "lp_subproblem_$(it)_edge_$(e_bar.src)_to_$(e_bar.dst)")
@@ -281,6 +285,8 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
     return RoutingSolution(rd,
                            n_cuts=total_cuts,
                            n_columns=total_new_paths,
+                           n_columns_master=total_new_paths_master,
+                           n_columns_subproblems=total_new_paths_sub,
                            time_precompute_ms=rd.time_precompute_ms,
                            time_create_master_model_ms=time_create_master_model_ms,
                            time_create_subproblems_model_ms=time_create_sub_model_ms,

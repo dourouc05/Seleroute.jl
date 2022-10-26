@@ -185,13 +185,15 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     # redundant constraints).
 
     return RoutingSolution(rd, result=end_status,
+                           n_columns=n_new_paths,
+                           n_columns_master=n_new_paths,
+                           n_columns_subproblems=0,
                            time_precompute_ms=rd.time_precompute_ms,
                            time_create_master_model_ms=time_create_master_model_ms,
                            time_create_subproblems_model_ms=0.0, # No subproblem, only shortest paths.
                            time_solve_ms=times_ms,
                            time_solve_master_model_ms=times_master_ms,
                            time_solve_subproblems_model_ms=times_sub_ms,
-                           n_columns=n_new_paths,
                            objectives=objectives,
                            matrices=rd.traffic_matrix,
                            routings=routings,

@@ -77,6 +77,12 @@ All information from intermediate iterations are kept within this object.
   * `n_cuts`: the number of added constraints.
   * `n_columns`: the number of added columns, for column-generation based
     algorithms. Its value should be 0 for other algorithms.
+  * `n_columns_master`: the number of added columns to the master problem, for
+    column-generation based algorithms. Its value should be 0 for other
+    algorithms. Columns for the subproblems are not counted, if any.
+  * `n_columns_subproblems`: the number of added columns to the subproblems,
+    for column-generation based iterative algorithms. Its value should be 0 for
+    other algorithms. Columns for the master problem are not counted, if any;
 
 Many different timings are measured for the whole execution (always in
 milliseconds), with a granularity at most for master-problem iterations
@@ -150,6 +156,8 @@ struct RoutingSolution
     result::MOI.TerminationStatusCode
     n_cuts::Int
     n_columns::Int
+    n_columns_master::Int
+    n_columns_subproblems::Int
 
     time_precompute_ms::Float64
     time_create_master_model_ms::Float64
@@ -209,6 +217,8 @@ function RoutingSolution(data::RoutingData;
                          result::MOI.TerminationStatusCode=MOI.OPTIMAL,
                          n_cuts::Int=0,
                          n_columns::Int=0,
+                         n_columns_master::Int=0,
+                         n_columns_subproblems::Int=0,
                          time_precompute_ms::Float64=0.0,
                          time_create_master_model_ms::Float64=0.0,
                          time_create_subproblems_model_ms::Float64=0.0,
@@ -251,6 +261,8 @@ function RoutingSolution(data::RoutingData;
                            result,
                            n_cuts,
                            n_columns,
+                           n_columns_master,
+                           n_columns_subproblems,
                            time_precompute_ms,
                            time_create_master_model_ms,
                            time_create_subproblems_model_ms,

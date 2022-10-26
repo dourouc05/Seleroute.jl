@@ -69,6 +69,9 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     end
 
     return RoutingSolution(rd,
+                           n_columns=n_new_paths,
+                           n_columns_master=n_new_paths,
+                           n_columns_subproblems=0,
                            time_precompute_ms=rd.time_precompute_ms,
                            time_create_master_model_ms=time_create_master_model_ms,
                            time_create_subproblems_model_ms=0.0, # No subproblem, only shortest paths.
@@ -76,7 +79,6 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
                            time_solve_master_model_ms=times_master_ms,
                            time_solve_subproblems_model_ms=times_sub_ms,
                            objectives=objective_value(m),
-                           n_columns=n_new_paths,
                            matrices=rd.traffic_matrix,
                            routings=Routing(rd, value.(rm.routing)),
                            master_model=rm)
@@ -202,6 +204,8 @@ function compute_routing(rd::RoutingData, ::EdgeWiseObjectiveFunction, ::Minimum
 
     return RoutingSolution(rd,
                            n_columns=n_new_paths,
+                           n_columns_master=n_new_paths,
+                           n_columns_subproblems=0,
                            time_precompute_ms=rd.time_precompute_ms,
                            time_create_master_model_ms=time_create_master_model_ms,
                            time_create_subproblems_model_ms=0.0, # No subproblem, only shortest paths.

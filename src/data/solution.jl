@@ -86,11 +86,11 @@ milliseconds):
     unroutable demands; for column-generation algorithms, it includes the time
     to generate the first few paths (i.e. before any pricing process can take
     place). This parameter takes precedence on the one from the given
-	`RoutingData` object (i.e. it may include more operations).
+    `RoutingData` object (i.e. it may include more operations).
   * `time_create_master_model_ms`: time to create the mathematical formulation
     of the master problem (or the only problem, if the algorithm is not
-	iterative). In particular, this does not include instanciation of
-	subproblems.
+    iterative). In particular, this does not include instanciation of
+    subproblems.
   * `time_solve_ms`: time to compute the routing, one value per iteration.
   * `total_time_solve_ms`: total time spent in solving.
     (This field is computed and not explicitly stored in the object.)
@@ -126,7 +126,7 @@ struct RoutingSolution
     n_columns::Int
 
     time_precompute_ms::Float64
-	time_create_master_model_ms::Float64
+    time_create_master_model_ms::Float64
     time_solve_ms::Dict{Int, Float64}
     time_intermediate_export_ms::Dict{Int, Float64}
     time_final_export_ms::Float64
@@ -177,46 +177,46 @@ function RoutingSolution(data::RoutingData;
                          n_cuts::Int=0,
                          n_columns::Int=0,
                          time_precompute_ms::Float64=0.0,
-						 time_create_master_model_ms::Float64=0.0,
-						 time_solve_ms::Union{
+                         time_create_master_model_ms::Float64=0.0,
+                         time_solve_ms::Union{
                              Float64,
                              Vector{Float64},
                              Dict{Int, Float64}
                          }=0.0,
-						 time_intermediate_export_ms::Union{
+                         time_intermediate_export_ms::Union{
                              Float64,
                              Vector{Float64},
                              Dict{Int, Float64}
                          }=Dict{Int, Float64}(),
-						 time_final_export_ms::Float64=0.0,
-						 objectives::Union{
+                         time_final_export_ms::Float64=0.0,
+                         objectives::Union{
                              Float64, Vector{Float64},
                              Dict{Int, Float64}},
-						 matrices::Union{
+                         matrices::Union{
                              Dict{Edge{Int}, Float64},
                              Vector{Dict{Edge{Int}, Float64}},
                              Dict{Int, Vector{Dict{Edge{Int}, Float64}}}
                          }=Dict{Edge{Int}, Float64}(),
-						 routings::Union{
+                         routings::Union{
                              Routing,
                              Vector{Routing},
                              Dict{Int, Routing}},
-						 master_model::RoutingModel
-						)
+                         master_model::RoutingModel
+                        )
     return RoutingSolution(data,
-	                       result,
-						   n_cuts,
-						   n_columns,
-	                       time_precompute_ms,
-						   time_create_master_model_ms,
-						   _parse_routingsolution_input(time_solve_ms),
-						   _parse_routingsolution_input(
+                           result,
+                           n_cuts,
+                           n_columns,
+                           time_precompute_ms,
+                           time_create_master_model_ms,
+                           _parse_routingsolution_input(time_solve_ms),
+                           _parse_routingsolution_input(
                                time_intermediate_export_ms),
-						   time_final_export_ms,
-						   _parse_routingsolution_input(objectives),
-						   _parse_routingsolution_matrices(matrices),
-						   _parse_routingsolution_input(routings),
-						   master_model)
+                           time_final_export_ms,
+                           _parse_routingsolution_input(objectives),
+                           _parse_routingsolution_matrices(matrices),
+                           _parse_routingsolution_input(routings),
+                           master_model)
 end
 
 function flow_routing_to_path(data::RoutingData,

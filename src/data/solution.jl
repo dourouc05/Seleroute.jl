@@ -158,11 +158,18 @@ function Base.getproperty(obj::RoutingSolution, sym::Symbol)
 end
 
 _parse_routingsolution_input(x::T) where T = Dict{Int, T}(1 => x)
-_parse_routingsolution_input(x::Vector{T}) where T = Dict{Int, T}(i => x[i] for i in 1:length(x))
+_parse_routingsolution_input(x::Vector{T}) where T =
+    Dict{Int, T}(i => x[i] for i in 1:length(x))
 _parse_routingsolution_input(x::Dict{Int, T}) where T = x
 
-_parse_routingsolution_matrices(x::Dict{Edge{Int}, Float64}) = length(x) == 0 ? Dict{Int, Vector{Dict{Edge{Int}, Float64}}}() : Dict(1 => [x])
-_parse_routingsolution_matrices(x::Vector{Dict{Edge{Int}, Float64}}) = length(x) == 0 ? Dict{Int, Vector{Dict{Edge{Int}, Float64}}}() : Dict(1 => x)
+_parse_routingsolution_matrices(x::Dict{Edge{Int}, Float64}) =
+    length(x) == 0 ?
+        Dict{Int, Vector{Dict{Edge{Int}, Float64}}}() :
+        Dict(1 => [x])
+_parse_routingsolution_matrices(x::Vector{Dict{Edge{Int}, Float64}}) =
+    length(x) == 0 ?
+        Dict{Int, Vector{Dict{Edge{Int}, Float64}}}() :
+        Dict(1 => x)
 _parse_routingsolution_matrices(x::Dict{Int, Vector{Dict{Edge{Int}, Float64}}}) = x
 
 function RoutingSolution(data::RoutingData;
@@ -203,7 +210,8 @@ function RoutingSolution(data::RoutingData;
 	                       time_precompute_ms,
 						   time_create_master_model_ms,
 						   _parse_routingsolution_input(time_solve_ms),
-						   _parse_routingsolution_input(time_intermediate_export_ms),
+						   _parse_routingsolution_input(
+                               time_intermediate_export_ms),
 						   time_final_export_ms,
 						   _parse_routingsolution_input(objectives),
 						   _parse_routingsolution_matrices(matrices),
@@ -211,9 +219,12 @@ function RoutingSolution(data::RoutingData;
 						   master_model)
 end
 
-function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64}; ε::Float64=1.e-5)
+function flow_routing_to_path(data::RoutingData,
+                              routing::AbstractMatrix{Float64};
+                              ε::Float64=1.e-5)
     if data.model_type.type != FlowFormulation()
-        error("This function can only be used for flow-based formulations; it makes no sense for formulation type $(data.model_type)")
+        error("This function can only be used for flow-based formulations; " *
+              "it makes no sense for formulation type $(data.model_type)")
     end
 
     path_flows = Dict{Edge{Int}, Dict{Int, Float64}}() # demand -> path index -> flow
@@ -281,12 +292,16 @@ function flow_routing_to_path(data::RoutingData, routing::AbstractMatrix{Float64
     return path_flows, edge_flows, paths
 end
 
-function path_routing_to_flow(data::RoutingData, routing::AbstractMatrix{Float64}; ε::Float64=1.e-5)
+function path_routing_to_flow(data::RoutingData,
+                              routing::AbstractMatrix{Float64};
+                              ε::Float64=1.e-5)
     if data.model_type.type != PathFormulation()
-        error("This function can only be used for path-based formulations; it makes no sense for formulation type $(data.model_type)")
+        error("This function can only be used for path-based formulations; " *
+              "it makes no sense for formulation type $(data.model_type)")
     end
 
-    # Sum over all paths that cross a given edge to get the total weight of each edge, demand per demand.
+    # Sum over all paths that cross a given edge to get the total weight of
+    # each edge, demand per demand.
     path_flows = Dict{Edge{Int}, Dict{Int, Float64}}()
 
     for k in eachindex(routing)

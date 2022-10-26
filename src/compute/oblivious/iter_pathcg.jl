@@ -170,6 +170,7 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::Minim
 
     result = nothing
     current_routing = nothing
+    current_routing_nb_paths = 0
 
     while true
         # Solve the current master problem.
@@ -177,6 +178,7 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::Minim
         optimize!(m)
         result = termination_status(m)
         current_routing = Routing(rd, value.(rm.routing)) # TODO: remember all generated routings.
+        current_routing_nb_paths = count(value.(rm.routing) .>= CPLEX_REDUCED_COST_TOLERANCE)
 
         # Check if there are still columns to add.
         dual_values_matrices = Dict(tm => Dict(e => dual(constraint) for (e, constraint) in d) for (tm, d) in rm.constraints_matrices)
@@ -199,7 +201,7 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::Minim
         # TODO: propose to output problems at each iteration (_export_lp_if_allowed).
     end
 
-    return result, current_routing, n_new_paths
+    return result, current_routing, n_new_paths, current_routing_nb_paths
 end
 
 function solve_subproblem(rd::RoutingData, rm::RoutingModel, s_rm::RoutingModel, e_bar::Edge, ::Load, ::MinimumMaximum, ::FormulationType, ::Val{true}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)

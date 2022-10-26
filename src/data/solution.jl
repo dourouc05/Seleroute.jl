@@ -14,12 +14,15 @@ struct Routing
         if data.model_type.type == FlowFormulation()
             # If the model is not path-based, translate it.
             path_flows, edge_flows, paths = flow_routing_to_path(data, routing)
-            return new(data, path_flows, edge_flows, collect(demands(data)), paths)
+            return new(data, path_flows, edge_flows, collect(demands(data)),
+                       paths)
         else
             @assert data.model_type.type == PathFormulation()
-            # Otherwise, much simpler transformation: the solution is already written in terms of paths.
+            # Otherwise, much simpler transformation: the solution is already
+            # written in terms of paths.
             path_flows, edge_flows = path_routing_to_flow(data, routing)
-            return new(data, path_flows, edge_flows, collect(demands(data)), data.paths_edges)
+            return new(data, path_flows, edge_flows, collect(demands(data)),
+                       data.paths_edges)
         end
     end
 end
@@ -82,7 +85,9 @@ All information from intermediate iterations are kept within this object.
     algorithms. Columns for the subproblems are not counted, if any.
   * `n_columns_subproblems`: the number of added columns to the subproblems,
     for column-generation based iterative algorithms. Its value should be 0 for
-    other algorithms. Columns for the master problem are not counted, if any;
+    other algorithms. Columns for the master problem are not counted, if any.
+  * `n_columns_used`: the number of columns actually used for the last solution
+    (i.e. nonzero flow in these paths). Zero for flow-based formulations.
 
 Many different timings are measured for the whole execution (always in
 milliseconds), with a granularity at most for master-problem iterations
@@ -158,6 +163,7 @@ struct RoutingSolution
     n_columns::Int
     n_columns_master::Int
     n_columns_subproblems::Int
+    n_columns_used::Int
 
     time_precompute_ms::Float64
     time_create_master_model_ms::Float64
@@ -220,6 +226,7 @@ function RoutingSolution(data::RoutingData;
                          n_columns::Int=0,
                          n_columns_master::Int=0,
                          n_columns_subproblems::Int=0,
+                         n_columns_used::Int=0,
                          time_precompute_ms::Float64=0.0,
                          time_create_master_model_ms::Float64=0.0,
                          time_create_subproblems_model_ms::Float64=0.0,
@@ -264,6 +271,7 @@ function RoutingSolution(data::RoutingData;
                            n_columns,
                            n_columns_master,
                            n_columns_subproblems,
+                           n_columns_used,
                            time_precompute_ms,
                            time_create_master_model_ms,
                            time_create_subproblems_model_ms,

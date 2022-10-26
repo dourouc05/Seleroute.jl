@@ -11,6 +11,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
     # Data structures to hold intermediate results.
     n_new_paths = 0
     routings = Routing[]
+    current_routing_nb_paths = 0
     objectives = Float64[]
     times_ms = Float64[]
     times_master_ms = Float64[]
@@ -28,6 +29,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
         status = termination_status(m)
         push!(routings, Routing(rd, value.(rm.routing)))
         push!(objectives, objective_value(m))
+        current_routing_nb_paths = count(value.(rm.routing) .>= CPLEX_REDUCED_COST_TOLERANCE)
 
         # Export if needed. TODO: use iteration number.
         _export_lp_if_allowed(rd, rm.model, "lp_master")
@@ -94,6 +96,10 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
     # TODO: Export things like the normal case.
 
     return RoutingSolution(rd,
+                           n_columns=n_new_paths,
+                           n_columns_master=n_new_paths,
+                           n_columns_subproblems=0,
+                           n_columns_used=current_routing_nb_paths,
                            time_precompute_ms=rd.time_precompute_ms,
                            time_create_master_model_ms=time_create_master_model_ms,
                            time_create_subproblems_model_ms=0.0, # No subproblem, only shortest paths.

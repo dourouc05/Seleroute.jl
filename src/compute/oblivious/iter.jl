@@ -59,7 +59,7 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::Minim
     result = termination_status(rm.model)
     current_routing = Routing(rd, value.(rm.routing))
 
-    return result, current_routing, 0
+    return result, current_routing, 0, 0
 end
 
 function solve_subproblem(rd::RoutingData, ::RoutingModel, s_rm::RoutingModel, e_bar::Edge, ::Load, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
@@ -142,6 +142,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
     # Initialise data structures to hold all intermediate results.
     objectives = Float64[]
     routings = Routing[]
+    current_routing_nb_paths = 0
     matrices = Dict{Int, Vector{Dict{Edge{Int}, Float64}}}()
     matrices_set = Set{Dict{Edge{Int}, Float64}}()
     it = 1
@@ -158,7 +159,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
         start = time_ns()
 
         # Solve the current master problem, possibly with column generation.
-        result, current_routing, n_new_paths = solve_master_problem(rd, rm, rd.model_type)
+        result, current_routing, n_new_paths, current_routing_nb_paths = solve_master_problem(rd, rm, rd.model_type)
         push!(times_master_ms, (time_ns() - start) / 1_000_000.)
         total_new_paths += n_new_paths
         total_new_paths_master += n_new_paths
@@ -287,6 +288,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
                            n_columns=total_new_paths,
                            n_columns_master=total_new_paths_master,
                            n_columns_subproblems=total_new_paths_sub,
+                           n_columns_used=current_routing_nb_paths,
                            time_precompute_ms=rd.time_precompute_ms,
                            time_create_master_model_ms=time_create_master_model_ms,
                            time_create_subproblems_model_ms=time_create_sub_model_ms,

@@ -134,7 +134,7 @@ function _mintotload_solve_pricing_problem_master(rd::RoutingData,
     return paths
 end
 
-function compute_routing(rd::RoutingData, ::EdgeWiseObjectiveFunction, ::MinimumTotal, ::PathFormulation, ::Val{true}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
+function compute_routing(rd::RoutingData, ::EdgeWiseObjectiveFunction, ::MinimumMaximum, ::PathFormulation, ::Val{true}, ::Automatic, ::NoUncertaintyHandling, ::NoUncertainty)
     start = time_ns()
 
     # Create the problem.

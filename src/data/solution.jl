@@ -77,6 +77,9 @@ All information from intermediate iterations are kept within this object.
   * `n_matrices`: the number of traffic matrices added into the formulation. It
     may be equal to the number of iterations, depending on the algorithm.
     (This field is computed and not explicitly stored in the object.)
+  * `n_matrices_per_edge`: the number of traffic matrices that were generated,
+    arranged by edge that yielded the traffic matrix, if this definition
+    matches the behaviour of the algorithm.
   * `n_cuts`: the number of added constraints.
   * `n_columns`: the number of added columns, for column-generation based
     algorithms. Its value should be 0 for other algorithms.
@@ -160,6 +163,7 @@ struct RoutingSolution
     data::RoutingData
     result::MOI.TerminationStatusCode
     n_cuts::Int
+    n_matrices_per_edge::Dict{Edge{Int}, Int}
     n_columns::Int
     n_columns_master::Int
     n_columns_subproblems::Int
@@ -223,6 +227,8 @@ _parse_routingsolution_matrices(x::Dict{Int, Vector{Dict{Edge{Int}, Float64}}}) 
 function RoutingSolution(data::RoutingData;
                          result::MOI.TerminationStatusCode=MOI.OPTIMAL,
                          n_cuts::Int=0,
+                         n_matrices_per_edge::Dict{Edge{Int}, Int}=
+                             Dict{Edge{Int}, Int}(),
                          n_columns::Int=0,
                          n_columns_master::Int=0,
                          n_columns_subproblems::Int=0,
@@ -268,6 +274,7 @@ function RoutingSolution(data::RoutingData;
     return RoutingSolution(data,
                            result,
                            n_cuts,
+                           n_matrices_per_edge,
                            n_columns,
                            n_columns_master,
                            n_columns_subproblems,

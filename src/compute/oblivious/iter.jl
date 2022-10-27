@@ -145,6 +145,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
     current_routing_nb_paths = 0
     matrices = Dict{Int, Vector{Dict{Edge{Int}, Float64}}}()
     matrices_set = Set{Dict{Edge{Int}, Float64}}()
+    n_matrices_per_edge = Dict{Edge{Int}, Int}(e_bar => 0 for e_bar in edges(rd))
     it = 1
     total_cuts = 0
     total_new_paths = 0
@@ -219,6 +220,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
                 replace_top_matrix = ! add_matrix && objective_value(s_m) > interesting_matrices[1].subproblem_objective
 
                 if add_matrix || replace_top_matrix
+                    n_matrices_per_edge[e_bar] += 1
                     if add_matrix
                         push!(interesting_matrices, candidate_matrix)
                     else
@@ -285,6 +287,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
 
     return RoutingSolution(rd,
                            n_cuts=total_cuts,
+                           n_matrices_per_edge=n_matrices_per_edge,
                            n_columns=total_new_paths,
                            n_columns_master=total_new_paths_master,
                            n_columns_subproblems=total_new_paths_sub,

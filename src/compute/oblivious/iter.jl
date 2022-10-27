@@ -146,6 +146,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
     matrices = Dict{Int, Vector{Dict{Edge{Int}, Float64}}}()
     matrices_set = Set{Dict{Edge{Int}, Float64}}()
     n_matrices_per_edge = Dict{Edge{Int}, Int}(e_bar => 0 for e_bar in edges(rd))
+    n_matrices_used = Dict{Int, Int}()
     it = 1
     total_cuts = 0
     total_new_paths = 0
@@ -155,7 +156,8 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
     times_master_ms = Float64[]
     times_sub_ms = Float64[]
 
-    # Start the oblivious loop.
+    # Start the oblivious loop. The number of iterations is unknown: the
+    # process is run until convergence.
     while true
         start = time_ns()
 
@@ -164,14 +166,22 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
         push!(times_master_ms, (time_ns() - start) / 1_000_000.)
         total_new_paths += n_new_paths
         total_new_paths_master += n_new_paths
+        push!(routings, current_routing)
 
         # Export if needed.
         _export_lp_if_allowed(rd, m, "lp_master_$(it)")
         _export_lp_if_failed(rd, result, m, "error_master_$(it)", "Current master problem could not be solved!")
 
-        # Otherwise, go on and save the original routing (the one that does not
-        # consider any oblivious demand).
-        push!(routings, current_routing)
+        # Count the tight matrices, i.e. if any of the constraints
+        # corresponding to the matrix is tight (dual value equal to zero).
+        n_matrices_used[it] = 0
+        for matrix in keys(rm.constraints_matrices)
+            duals = [dual(rm.constraints_matrices[matrix][e])
+                     for e in keys(rm.constraints_matrices[matrix])]
+            if any(abs.(duals) .<= CPLEX_REDUCED_COST_TOLERANCE)
+                n_matrices_used[it] += 1
+            end
+        end
 
         # See if there was a change in mu.
         push!(objectives, value(rm.mu))
@@ -288,6 +298,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
     return RoutingSolution(rd,
                            n_cuts=total_cuts,
                            n_matrices_per_edge=n_matrices_per_edge,
+                           n_matrices_used=n_matrices_used,
                            n_columns=total_new_paths,
                            n_columns_master=total_new_paths_master,
                            n_columns_subproblems=total_new_paths_sub,

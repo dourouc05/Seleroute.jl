@@ -80,6 +80,9 @@ All information from intermediate iterations are kept within this object.
   * `n_matrices_per_edge`: the number of traffic matrices that were generated,
     arranged by edge that yielded the traffic matrix, if this definition
     matches the behaviour of the algorithm.
+  * `n_matrices_used`: the number of matrices that are actually used for the
+    solution at any given iteration (i.e. they correspond to tight
+    constraints).
   * `n_cuts`: the number of added constraints.
   * `n_columns`: the number of added columns, for column-generation based
     algorithms. Its value should be 0 for other algorithms.
@@ -164,6 +167,7 @@ struct RoutingSolution
     result::MOI.TerminationStatusCode
     n_cuts::Int
     n_matrices_per_edge::Dict{Edge{Int}, Int}
+    n_matrices_used::Dict{Int, Int}
     n_columns::Int
     n_columns_master::Int
     n_columns_subproblems::Int
@@ -229,6 +233,7 @@ function RoutingSolution(data::RoutingData;
                          n_cuts::Int=0,
                          n_matrices_per_edge::Dict{Edge{Int}, Int}=
                              Dict{Edge{Int}, Int}(),
+                         n_matrices_used::Dict{Int, Int}=Dict{Int, Int}(),
                          n_columns::Int=0,
                          n_columns_master::Int=0,
                          n_columns_subproblems::Int=0,
@@ -275,6 +280,7 @@ function RoutingSolution(data::RoutingData;
                            result,
                            n_cuts,
                            n_matrices_per_edge,
+                           n_matrices_used,
                            n_columns,
                            n_columns_master,
                            n_columns_subproblems,

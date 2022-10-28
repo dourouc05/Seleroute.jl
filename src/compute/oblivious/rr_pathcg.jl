@@ -9,6 +9,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
     time_create_master_model_ms = (time_ns() - start) / 1_000_000.
 
     # Data structures to hold intermediate results.
+    result = MOI.OPTIMAL
     n_new_paths = 0
     routings = Routing[]
     current_routing_nb_paths = 0
@@ -19,21 +20,38 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
 
     # Main loop.
     while true
-        start = time_ns()
+        # Enforce the timeout.
+        if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
+            result = MOI.TIME_LIMIT
+            break
+        end
+
+        start_iter = time_ns()
+
+        # Enfore the timeout. This value is much higher than it should be, because
+        # this function has no access to the starting time of `compute_routing`.
+        if rd.timeout.value > 0
+            set_time_limit_sec(rm.model, floor(rd.timeout, Second).value)
+        end
 
         # Solve the current master problem.
         m = rm.model
         optimize!(m)
 
-        push!(times_master_ms, (time_ns() - start) / 1_000_000.)
-        status = termination_status(m)
+        push!(times_master_ms, (time_ns() - start_iter) / 1_000_000.)
+        result = termination_status(m)
+
+        if result == MOI.TIME_LIMIT
+            break
+        end
+        
         push!(routings, Routing(rd, value.(rm.routing)))
         push!(objectives, objective_value(m))
         current_routing_nb_paths = count(value.(rm.routing) .>= CPLEX_REDUCED_COST_TOLERANCE)
 
         # Export if needed. TODO: use iteration number.
         _export_lp_if_allowed(rd, rm.model, "lp_master")
-        _export_lp_if_failed(rd, status, rm.model, "error_master", "Subproblem could not be solved!")
+        _export_lp_if_failed(rd, result, rm.model, "error_master", "Subproblem could not be solved!")
 
         # Check if there are still columns to add.
         dual_value_convexity = dual.(rm.constraints_convexity) # Demand -> dual value
@@ -81,21 +99,24 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
     # Restore the original value.
     rd.model_robust_reformulation_traffic_matrices = old_tm
 
-    # Export if needed.
-    status = termination_status(rm.model)
-    _export_lp_if_allowed(rd, rm.model, "lp_master")
-    _export_lp_if_failed(rd, status, rm.model, "error_master", "Subproblem could not be solved!")
+    # Finalise the process.
+    matrices = Dict{Edge{Int}, Float64}[]
+    if result != MOI.TIME_LIMIT
+        # Export if needed.
+        result = termination_status(rm.model)
+        _export_lp_if_allowed(rd, rm.model, "lp_master")
+        _export_lp_if_failed(rd, result, rm.model, "error_master", "Subproblem could not be solved!")
 
-    # Retrieve the traffic matrices, if asked.
-    matrices = if rd.model_robust_reformulation_traffic_matrices
-        get_traffic_matrices(rm)
-    else
-        Dict{Edge{Int}, Float64}[]
+        # Retrieve the traffic matrices, if asked.
+        if rd.model_robust_reformulation_traffic_matrices
+            matrices = get_traffic_matrices(rm)
+        end
+
+        # TODO: Export things like the normal case.
     end
 
-    # TODO: Export things like the normal case.
-
     return RoutingSolution(rd,
+                           result=result,
                            n_columns=n_new_paths,
                            n_columns_master=n_new_paths,
                            n_columns_subproblems=0,

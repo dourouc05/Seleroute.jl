@@ -43,6 +43,7 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     time_create_master_model_ms = (time_ns() - start) / 1_000_000.
 
     # Memorise the evolution of the algorithm.
+    result = MOI.OPTIMAL
     n_iter = 0
     n_new_paths = 0
     routings = Routing[]
@@ -50,7 +51,6 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     times_ms = Float64[]
     times_master_ms = Float64[]
     times_sub_ms = Float64[]
-    end_status = MOI.OPTIMAL
 
     # Iteratively solve it by removing τ constraints and fixing the values of
     # the corresponding objectives.
@@ -61,12 +61,18 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         time_to_solve_master = 0.0
         time_to_solve_sub = 0.0
 
-        start = time_ns()
+        start_iter = time_ns()
 
         # Optimise for this iteration, possibly using column generation.
         # When there is no column generation, this loop only executes once.
         cg_it = 0
         while true
+            # Enforce the timeout.
+            if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
+                result = MOI.TIME_LIMIT
+                break
+            end
+
             # Actual optimisation of the master problems.
             start_master = time_ns()
             optimize!(m)
@@ -85,7 +91,7 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
 
                 # Report other problematic codes.
                 if status in [MOI.INFEASIBLE, MOI.INFEASIBLE_OR_UNBOUNDED] && n_iter > 0
-                    end_status = MOI.ALMOST_OPTIMAL
+                    result = MOI.ALMOST_OPTIMAL
                     break
                 end
             end
@@ -132,6 +138,13 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
                 break
             end
         end
+        
+        # Enforce the timeout. This code is called also when the timeout occurs
+        # in the previous loop.
+        if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
+            result = MOI.TIME_LIMIT
+            break
+        end
 
         # Report the values for this iteration.
         master_τ = objective_value(m)
@@ -172,7 +185,7 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
         # Log a few things at the end of the iteration. Stop if no new edge was
         # found.
         n_iter += 1
-        push!(times_ms, (time_ns() - start) / 1_000_000.)
+        push!(times_ms, (time_ns() - start_iter) / 1_000_000.)
 
         if length(new_edges) == 0
             # The user is already warned.
@@ -184,7 +197,8 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     # to the current value in the master (i.e. the last iteration just added
     # redundant constraints).
 
-    return RoutingSolution(rd, result=end_status,
+    return RoutingSolution(rd,
+                           result=result,
                            n_columns=n_new_paths,
                            n_columns_master=n_new_paths,
                            n_columns_subproblems=0,

@@ -17,6 +17,12 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::Formulatio
 
     time_create_master_model_ms = (time_ns() - start) / 1_000_000.
 
+    # Enforce the timeout on the solver: it will take all the time in this
+    # function, more or less.
+    if rd.timeout.value > 0
+        set_time_limit_sec(rm.model, floor(rd.timeout, Second).value)
+    end
+
     # Solve the problem.
     start = time_ns()
     optimize!(m)
@@ -68,6 +74,12 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
 
     time_create_master_model_ms = (time_ns() - start) / 1_000_000.
 
+    # Enforce the timeout on the solver: it will take all the time in this
+    # function, more or less.
+    if rd.timeout.value > 0
+        set_time_limit_sec(rm.model, floor(rd.timeout, Second).value)
+    end
+
     # Done!
     start = time_ns()
     optimize!(m)
@@ -118,6 +130,12 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     end
 
     time_create_master_model_ms = (time_ns() - start) / 1_000_000.
+
+    # Enforce the timeout on the solver: it will take all the time in this
+    # function, more or less.
+    if rd.timeout.value > 0
+        set_time_limit_sec(rm.model, floor(rd.timeout, Second).value)
+    end
 
     # Done!
     start = time_ns()

@@ -18,6 +18,7 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     time_create_master_model_ms = (time_ns() - start) / 1_000_000.
 
     # Solve this by column generation.
+    result = MOI.OPTIMAL
     routings = Routing[]
     objectives = Float64[]
     times_ms = Float64[]
@@ -27,7 +28,13 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     n_iter = 0
 
     while true
-        start = time_ns()
+        # Enforce the timeout.
+        if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
+            result = MOI.TIME_LIMIT
+            break
+        end
+
+        start_iter = time_ns()
 
         # Optimise for the current iteration.
         start_master = time_ns()
@@ -59,7 +66,7 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
 
         rd.logmessage("[$(n_iter)] Added $(length(new_paths)) new paths.")
         n_iter += 1
-        push!(times_ms, (time_ns() - start) / 1_000_000.)
+        push!(times_ms, (time_ns() - start_iter) / 1_000_000.)
         push!(times_master_ms, (end_master - start_master) / 1_000_000.)
         push!(times_sub_ms, (end_sub - start_sub) / 1_000_000.)
 
@@ -69,6 +76,7 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     end
 
     return RoutingSolution(rd,
+                           result=result,
                            n_columns=n_new_paths,
                            n_columns_master=n_new_paths,
                            n_columns_subproblems=0,
@@ -152,6 +160,7 @@ function compute_routing(rd::RoutingData, ::EdgeWiseObjectiveFunction, ::Minimum
     time_create_master_model_ms = (time_ns() - start) / 1_000_000.
 
     # Solve this by column generation.
+    result = MOI.OPTIMAL
     routings = Routing[]
     objectives = Float64[]
     times_ms = Float64[]
@@ -161,7 +170,13 @@ function compute_routing(rd::RoutingData, ::EdgeWiseObjectiveFunction, ::Minimum
     n_iter = 0
 
     while true
-        start = time_ns()
+        # Enforce the timeout.
+        if rd.timeout.value > 0 &&Nanosecond(time_ns() - start) >= rd.timeout
+            result = MOI.TIME_LIMIT
+            break
+        end
+
+        start_iter = time_ns()
 
         # Optimise for the current iteration.
         start_master = time_ns()
@@ -193,7 +208,7 @@ function compute_routing(rd::RoutingData, ::EdgeWiseObjectiveFunction, ::Minimum
 
         rd.logmessage("[$(n_iter)] Added $(length(new_paths)) new paths.")
         n_iter += 1
-        push!(times_ms, (time_ns() - start) / 1_000_000.)
+        push!(times_ms, (time_ns() - start_iter) / 1_000_000.)
         push!(times_master_ms, (end_master - start_master) / 1_000_000.)
         push!(times_sub_ms, (end_sub - start_sub) / 1_000_000.)
 
@@ -203,6 +218,7 @@ function compute_routing(rd::RoutingData, ::EdgeWiseObjectiveFunction, ::Minimum
     end
 
     return RoutingSolution(rd,
+                           result=result,
                            n_columns=n_new_paths,
                            n_columns_master=n_new_paths,
                            n_columns_subproblems=0,

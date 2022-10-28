@@ -19,22 +19,49 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, formulation:
     rm = master_formulation(rd, formulation)
     time_create_master_model_ms = (time_ns() - start) / 1_000_000.
 
-    # Solve the problem and generate the output data structure.
-    start_master = time_ns()
-    optimize!(rm.model)
-    end_master = time_ns()
-    rd.logmessage(objective_value(rm.model))
-    status = termination_status(rm.model)
+    # Enforce the timeout on the solver: it will take more time in this
+    # function than modelling (but modelling can be expensive).
+    result = MOI.OPTIMAL
+    if rd.timeout.value > 0
+        set_time_limit_sec(rm.model, floor(rd.timeout, Second).value)
 
-    # Export if needed.
-    _export_lp_if_allowed(rd, rm.model, "lp_master")
-    _export_lp_if_failed(rd, status, rm.model, "error_master", "Subproblem could not be solved!")
+        if Nanosecond(time_ns() - start) >= rd.timeout
+            result = MOI.TIME_LIMIT
+        end
+    end
 
-    # Retrieve the traffic matrices, if asked.
-    matrices = if rd.model_robust_reformulation_traffic_matrices
-        get_traffic_matrices(rm)
-    else
-        Dict{Edge{Int}, Float64}[]
+    # Maybe the formulation timed out.
+    if isnothing(rm.routing)
+        result = MOI.TIME_LIMIT
+    end
+
+    # Solve the problem.
+    time_solve_master = 0.0
+    if result != MOI.TIME_LIMIT
+        start_master = time_ns()
+        optimize!(rm.model)
+        time_solve_master = (time_ns() - start_master) / 1_000_000.
+        result = termination_status(rm.model)
+    end
+    
+    # Finalise the process.
+    matrices = Dict{Edge{Int}, Float64}[]
+    objectives = Float64[]
+    routings = Routing[]
+    if result != MOI.TIME_LIMIT
+        # Generate the output data structure.
+        rd.logmessage(objective_value(rm.model))
+        push!(objectives, objective_value(rm.model))
+        push!(routings, Routing(rd, value.(rm.routing)))
+
+        # Export if needed.
+        _export_lp_if_allowed(rd, rm.model, "lp_master")
+        _export_lp_if_failed(rd, result, rm.model, "error_master", "Subproblem could not be solved!")
+
+        # Retrieve the traffic matrices, if asked.
+        if rd.model_robust_reformulation_traffic_matrices
+            matrices = get_traffic_matrices(rm)
+        end
     end
 
     stop = time_ns()
@@ -42,12 +69,13 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, formulation:
     # TODO: Export things like the normal case.
 
     return RoutingSolution(rd,
+                           result=result,
                            time_precompute_ms=rd.time_precompute_ms,
                            time_create_master_model_ms=time_create_master_model_ms,
                            time_solve_ms=(stop - start) / 1_000_000.,
-                           time_solve_master_model_ms=(end_master - start_master) / 1_000_000.,
-                           objectives=[objective_value(rm.model)],
+                           time_solve_master_model_ms=time_solve_master,
+                           objectives=objectives,
                            matrices=matrices,
-                           routings=Routing(rd, value.(rm.routing)),
+                           routings=routings,
                            master_model=rm)
 end

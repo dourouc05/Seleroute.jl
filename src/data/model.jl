@@ -53,8 +53,6 @@ mutable struct RoutingModel # TODO: use Unicode characters for Greek letters?
         constraints_convexity=nothing, constraints_matrices::Dict{Dict{Edge{Int}, Float64}, Dict{Edge{Int}, Any}}=Dict{Dict{Edge{Int}, Float64}, Dict{Edge{Int}, Any}}(),
         constraints_uncertainty_set::Dict{Edge{Int}, Dict{Edge{Int}, ConstraintRef}}=Dict{Edge{Int}, Dict{Edge{Int}, ConstraintRef}}()
     )
-        @assert routing !== nothing
-
         return new(data, model, scaled_flows, mu, tau, routing, demand,
             dual, dual_alpha, dual_beta, dual_gamma, dual_delta,
             constraints_capacity, constraints_mmf,

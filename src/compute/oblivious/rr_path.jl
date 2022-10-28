@@ -1,4 +1,6 @@
 function master_formulation(rd::RoutingData, ::PathFormulation)
+    start = time_ns()
+
     m = _create_model(rd)
     rm = basic_routing_model_unitary(m, rd, PathFormulation()) # Includes convexity constraint.
 
@@ -10,6 +12,12 @@ function master_formulation(rd::RoutingData, ::PathFormulation)
         @variable(m, dual_beta[e in edges(rd), e2 in edges(rd)] >= 0)
     else
         @variable(m, dual[e in edges(rd), e2 in edges(rd)] >= 0)
+    end
+
+    # Enforce the timeout. This is not super precise, as start is computed
+    # when starting modelling, i.e. not when the user expects it.
+    if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
+        return RoutingModel(rd, m, UnitaryFlows, nothing)
     end
 
     # Robust uncertainty set.
@@ -38,13 +46,22 @@ function master_formulation(rd::RoutingData, ::PathFormulation)
                     @constraint(m, rhs <= sum(dual[e, e2] for e2 in rd.paths_edges[p]))
                 end
             end
+            
+            # Enforce the timeout. This is not super precise, as start is
+            # computed when starting modelling, i.e. not when the user
+            # expects it.
+            if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
+                return RoutingModel(rd, m, UnitaryFlows, nothing)
+            end
         end
 
         # Relate the main decision variables to the uncertainty sets.
         let dual_var = (rd.model_robust_reformulation_traffic_matrices ? dual_beta : dual)
-            rhs = sum(dual_var[e, e2] * capacity(rd, e2) for e2 in edges(rd))
-            rhs /= capacity(rd, e)
-            @constraint(m, rhs <= mu)
+            # Splitting this constraint into multiple expressions can create
+            # performance problems, as sum() is interpreted in a different way
+            # within the macro (efficient code) compared to the outside code
+            # (repeated calls to +=).
+            @constraint(m, sum(dual_var[e, e2] * capacity(rd, e2) for e2 in edges(rd)) / capacity(rd, e) <= mu)
         end
     end
 

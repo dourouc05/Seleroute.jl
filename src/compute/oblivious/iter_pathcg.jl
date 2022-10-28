@@ -173,8 +173,15 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::Minim
     current_routing_nb_paths = 0
 
     while true
-        # Solve the current master problem.
         m = rm.model
+        
+        # Enfore the timeout. This value is much higher than it should be, because
+        # this function has no access to the starting time of `compute_routing`.
+        if rd.timeout.value > 0
+            set_time_limit_sec(rm.model, floor(rd.timeout, Second).value)
+        end
+
+        # Solve the current master problem.
         optimize!(m)
         result = termination_status(m)
         current_routing = Routing(rd, value.(rm.routing)) # TODO: remember all generated routings.

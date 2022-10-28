@@ -55,6 +55,12 @@ solve_subproblem(rd::RoutingData, ::RoutingModel, rm::RoutingModel, e_bar::Edge,
 function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
     @assert rm.mu !== nothing
 
+    # Enfore the timeout. This value is much higher than it should be, because
+    # this function has no access to the starting time of `compute_routing`.
+    if rd.timeout.value > 0
+        set_time_limit_sec(rm.model, floor(rd.timeout, Second).value)
+    end
+
     optimize!(rm.model)
     result = termination_status(rm.model)
     current_routing = Routing(rd, value.(rm.routing))
@@ -63,6 +69,12 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::Minim
 end
 
 function solve_subproblem(rd::RoutingData, ::RoutingModel, s_rm::RoutingModel, e_bar::Edge, ::Load, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
+    # Enfore the timeout. This value is much higher than it should be, because
+    # this function has no access to the starting time of `compute_routing`.
+    if rd.timeout.value > 0
+        set_time_limit_sec(s_rm.model, floor(rd.timeout, Second).value)
+    end
+
     optimize!(s_rm.model)
     s_result = termination_status(s_rm.model)
 
@@ -140,6 +152,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
     time_create_sub_model_ms = 0.0 # Updated each time a submodel is created.
 
     # Initialise data structures to hold all intermediate results.
+    result = MOI.OPTIMAL
     objectives = Float64[]
     routings = Routing[]
     current_routing_nb_paths = 0
@@ -159,11 +172,16 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
     # Start the oblivious loop. The number of iterations is unknown: the
     # process is run until convergence.
     while true
-        start = time_ns()
+        # Enforce the timeout.
+        if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
+            result = MOI.TIME_LIMIT
+            break
+        end
 
         # Solve the current master problem, possibly with column generation.
+        start_iter = time_ns()
         result, current_routing, n_new_paths, current_routing_nb_paths = solve_master_problem(rd, rm, rd.model_type)
-        push!(times_master_ms, (time_ns() - start) / 1_000_000.)
+        push!(times_master_ms, (time_ns() - start_iter) / 1_000_000.)
         total_new_paths += n_new_paths
         total_new_paths_master += n_new_paths
         push!(routings, current_routing)
@@ -195,9 +213,17 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
 
         n_edges_done = 0
         n_new_paths_this_iter = 0
+        timed_out = false
         for e_bar in edges(rd)
             if n_edges_done % 20 == 0
                 rd.logmessage("Solving the subproblem... Edge $(n_edges_done) out of $(n_edges(rd))")
+                
+                # Enforce the timeout.
+                if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
+                    result = MOI.TIME_LIMIT
+                    timed_out = true
+                    break
+                end
             end
 
             # Solve the corresponding separation problem.
@@ -242,6 +268,10 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
             n_edges_done += 1
         end
 
+        if timed_out
+            break
+        end
+
         rd.logmessage("Solving the subproblem... Done! ")
         rd.logmessage("=> Current mu: $(objectives[end])")
 
@@ -273,6 +303,12 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
         # Record the time for this iteration.
         push!(times_ms, (time_ns() - start) / 1_000_000.)
 
+        # Enforce the timeout before plotting, because it can be slow.
+        if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
+            result = MOI.TIME_LIMIT
+            break
+        end
+
         # If needed, plot the results. Don't plot for the last iteration,
         # as this is automatically performed (the whole solution is always
         # plotted after the main loop).
@@ -285,17 +321,20 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
         it += 1
     end
 
-    # Do the final round of plotting.
-    rd.logmessage("== DBG == Starting to plot the results...")
-    # plot(rd, routings[end], basename="$(rd.output_folder)/graph_final") # TODO: reintroduce.
-    # rd.logmessage("== DBG == Generating the textual summary...")
-    # summary(rd, routings[1], routings[end], filename="$(rd.output_folder)/psummary.txt")
-    rd.logmessage("== DBG == Exporting the solution...")
-    # export_routing(rd, routings[end], filename="$(rd.output_folder)/oblivious_routing.txt")
+    if result != MOI.TIME_LIMIT
+        # Do the final round of plotting.
+        rd.logmessage("== DBG == Starting to plot the results...")
+        # plot(rd, routings[end], basename="$(rd.output_folder)/graph_final") # TODO: reintroduce.
+        # rd.logmessage("== DBG == Generating the textual summary...")
+        # summary(rd, routings[1], routings[end], filename="$(rd.output_folder)/psummary.txt")
+        rd.logmessage("== DBG == Exporting the solution...")
+        # export_routing(rd, routings[end], filename="$(rd.output_folder)/oblivious_routing.txt")
 
-    # exported = time_ns()
+        # exported = time_ns()
+    end
 
     return RoutingSolution(rd,
+                           result=result,
                            n_cuts=total_cuts,
                            n_matrices_per_edge=n_matrices_per_edge,
                            n_matrices_used=n_matrices_used,

@@ -18,6 +18,7 @@ Several fields configure the solving process.
 * Some parameters are always used:
   * `model_type`.
   * `model_simplifications`. TODO: reintroduce them.
+  * `timeout`.
 * Some parameters are sometimes used:
   * `sub_model_type`.
 * Some parameters are only useful for oblivious routing:
@@ -65,6 +66,7 @@ mutable struct RoutingData
     model_all_traffic_matrices::Bool
     model_exact_opt_d::Bool
     model_robust_reformulation_traffic_matrices::Bool
+    timeout::Period
 
     traffic_matrix::Dict{Edge{Int}, Float64}
 
@@ -109,6 +111,9 @@ The parameters almost always apply, and may have tremendous impact on solving pe
 * `remove_unsatisfiable_demands` determines whether the demands that are not routable (i.e. there is no path in `g`
   from their source to their destination, the topology `g` provides no connectivity between these two nodes) should
   be removed.
+* `timeout`: the maximum time for the computations. `Second(0)` indicates that there is no limit. If the time limit
+  is reached, the resulting solution will have the `MOI.TIME_LIMIT` status code with the current solution: it will
+  have no optimality or feasibility guarantee!
 
 Some models may use these parameters:
 
@@ -164,6 +169,7 @@ function RoutingData(g::AbstractMetaGraph, # Not MetaDiGraph, to show a more int
                      model_all_traffic_matrices::Bool=false,
                      model_exact_opt_d::Bool=false,
                      model_robust_reformulation_traffic_matrices::Bool=false,
+                     timeout::Period=Second(0),
                      traffic_matrix::Dict{Edge{Int}, Float64}=Dict{Edge{Int}, Float64}(),
                      npaths::Int=20,
                      remove_unreachable_nodes::Bool=true,
@@ -267,7 +273,7 @@ function RoutingData(g::AbstractMetaGraph, # Not MetaDiGraph, to show a more int
                        model_type, sub_model_type, model_simplifications,
                        model_all_traffic_matrices, model_exact_opt_d,
                        model_robust_reformulation_traffic_matrices,
-                       traffic_matrix,
+                       timeout, traffic_matrix,
                        # Precomputed things.
                        paths_edges, demand_to_path_ids, path_id_to_demand,
                        # Output parameters (graph plotting and logging).

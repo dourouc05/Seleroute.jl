@@ -14,6 +14,11 @@ const MOF = MOI.FileFormats
 
 const AbstractSimpleGraph = Graphs.AbstractSimpleGraph
 
+# TODO: for timeouts, it would be best if all the algorithms were implemented
+# using solver callbacks, the mechanisms would be easier to implement and
+# verify. Currently, it's really ad-hoc and I'm not really sure the returned
+# values always make sense.
+
 
 inedges(g, v) = [Edge(iv, v) for iv in inneighbors(g, v)]
 outedges(g, v) = [Edge(v, ov) for ov in outneighbors(g, v)]

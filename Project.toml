@@ -2,7 +2,7 @@ name = "Seleroute"
 uuid = "d2f42c57-c897-4e08-8218-a119b5759c84"
 authors = ["Thibaut Cuvelier <cuvelier.thibaut@gmail.com>"]
 repo = "https://github.com/dourouc05/Seleroute.jl.git"
-version = "0.2.3"
+version = "0.2.4"
 
 [deps]
 Cairo = "159f3aea-2a34-519c-b102-8c37f9878175"

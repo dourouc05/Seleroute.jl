@@ -67,6 +67,7 @@ mutable struct RoutingData
     model_exact_opt_d::Bool
     model_robust_reformulation_traffic_matrices::Bool
     timeout::Period
+    enable_variable_constraint_names::Bool
 
     traffic_matrix::Dict{Edge{Int}, Float64}
 
@@ -114,6 +115,9 @@ The parameters almost always apply, and may have tremendous impact on solving pe
 * `timeout`: the maximum time for the computations. `Second(0)` indicates that there is no limit. If the time limit
   is reached, the resulting solution will have the `MOI.TIME_LIMIT` status code with the current solution: it will
   have no optimality or feasibility guarantee!
+* `enable_variable_constraint_names`: whether variables and constraints should have names attached to them. Enabling
+  this option (the default) eases the debugging of the models; disabling it improves performance, especially for
+  large models.
 
 Some models may use these parameters:
 
@@ -136,7 +140,7 @@ These parameters are only used for oblivious routing:
 * `model_robust_reformulation_traffic_matrices` enables computing traffic matrices for the robust reformulations.
   Using this options increases the number of constraints in the problem to solve in order to get the right dual values.
 
-These parametesr are only used for problems without uncertainty.
+These parameters are only used for problems without uncertainty.
 
 * `traffic_matrix` is the only traffic matrix that is considered.
 
@@ -170,6 +174,7 @@ function RoutingData(g::AbstractMetaGraph, # Not MetaDiGraph, to show a more int
                      model_exact_opt_d::Bool=false,
                      model_robust_reformulation_traffic_matrices::Bool=false,
                      timeout::Period=Second(0),
+                     enable_variable_constraint_names::Bool=true,
                      traffic_matrix::Dict{Edge{Int}, Float64}=Dict{Edge{Int}, Float64}(),
                      npaths::Int=20,
                      remove_unreachable_nodes::Bool=true,
@@ -273,7 +278,7 @@ function RoutingData(g::AbstractMetaGraph, # Not MetaDiGraph, to show a more int
                        model_type, sub_model_type, model_simplifications,
                        model_all_traffic_matrices, model_exact_opt_d,
                        model_robust_reformulation_traffic_matrices,
-                       timeout, traffic_matrix,
+                       timeout, enable_variable_constraint_names, traffic_matrix,
                        # Precomputed things.
                        paths_edges, demand_to_path_ids, path_id_to_demand,
                        # Output parameters (graph plotting and logging).

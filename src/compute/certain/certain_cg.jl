@@ -4,8 +4,7 @@ function compute_routing(rd::RoutingData, edge_obj::EdgeWiseObjectiveFunction, a
     start = time_ns()
 
     # Create the problem.
-    m = Model(rd.solver)
-    set_silent(m)
+    m = _create_model(rd)
     rm = basic_routing_model_unitary(m, rd)
 
     # Constraints.

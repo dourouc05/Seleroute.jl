@@ -3,6 +3,7 @@ module Seleroute
 using JuMP
 using Graphs, MetaGraphs
 using Compose, Colors, GraphPlot, Cairo, Fontconfig
+using Dates
 
 using Printf, Statistics, LinearAlgebra, SparseArrays, DelimitedFiles, Random
 import Base: summary, getindex

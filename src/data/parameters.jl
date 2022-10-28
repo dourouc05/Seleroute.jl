@@ -50,7 +50,7 @@ From these graphs, several data structures are derived. Some of them are lazily 
   * `locs_f`: function that computes the two previous fields when requested. Takes a graph as input and outputs
     two vectors, `locs_x` and `locs_y`.
 
-The time to create the `RoutingData` object is memorised in `time_precompute_ms`.
+The time to create the `RoutingData` object is memorised in the `time_precompute_ms` field.
 """
 mutable struct RoutingData
     g::MetaDiGraph

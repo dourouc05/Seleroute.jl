@@ -123,6 +123,7 @@ struct Automatic <: AlgorithmChoice end
 struct CuttingPlane <: AlgorithmChoice end
 struct DualReformulation <: AlgorithmChoice end
 # TODO: Different algorithms for MMF?
+# TODO: mix between algorithms.
 
 """
 The way uncertainty is implemented. These values are natively supported:

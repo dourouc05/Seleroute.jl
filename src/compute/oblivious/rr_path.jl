@@ -7,7 +7,7 @@ function master_formulation(rd::RoutingData, ::PathFormulation)
     @variable(m, mu >= 0)
     @objective(m, Min, mu)
 
-    if rd.model_robust_reformulation_traffic_matrices
+    if rd.model_simplifications
         @variable(m, dual_alpha[e in edges(rd), k in demands(rd)] <= 0)
         @variable(m, dual_beta[e in edges(rd), e2 in edges(rd)] >= 0)
     else
@@ -21,7 +21,7 @@ function master_formulation(rd::RoutingData, ::PathFormulation)
     end
 
     # Robust uncertainty set.
-    if rd.model_robust_reformulation_traffic_matrices
+    if rd.model_simplifications
         dual_constraints = Dict{Edge{Int}, Dict{Edge{Int}, ConstraintRef}}(
             e => Dict{Edge{Int}, ConstraintRef}() for e in edges(rd)
         ) # Edge -> demand -> constraint reference.
@@ -36,7 +36,7 @@ function master_formulation(rd::RoutingData, ::PathFormulation)
                 end
             end
 
-            if rd.model_robust_reformulation_traffic_matrices
+            if rd.model_simplifications
                 dual_constraints[e][d] = @constraint(m, rhs + dual_alpha[e, d] <= 0)
                 for p in rd.demand_to_path_ids[d]
                     @constraint(m, dual_alpha[e, d] + sum(dual_beta[e, e2] for e2 in rd.paths_edges[p]) >= 0)
@@ -56,7 +56,7 @@ function master_formulation(rd::RoutingData, ::PathFormulation)
         end
 
         # Relate the main decision variables to the uncertainty sets.
-        let dual_var = (rd.model_robust_reformulation_traffic_matrices ? dual_beta : dual)
+        let dual_var = (rd.model_simplifications ? dual_beta : dual)
             # Splitting this constraint into multiple expressions can create
             # performance problems, as sum() is interpreted in a different way
             # within the macro (efficient code) compared to the outside code
@@ -65,7 +65,7 @@ function master_formulation(rd::RoutingData, ::PathFormulation)
         end
     end
 
-    if rd.model_robust_reformulation_traffic_matrices
+    if rd.model_simplifications
         return RoutingModel(rd, m, UnitaryFlows, rm.routing, mu=mu,
                             dual_alpha=dual_alpha, dual_beta=dual_beta,
                             constraints_uncertainty_set=dual_constraints,

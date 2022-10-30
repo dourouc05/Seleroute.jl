@@ -271,6 +271,20 @@ function RoutingData(g::AbstractMetaGraph, # Not MetaDiGraph, to show a more int
         path_id_to_demand = Dict{Int, Edge}()
     end
 
+    # For the special case of reformulation and column generation for oblivious
+    # routing, retrieving traffic matrices disables simplifications; otherwise,
+    # if the matrices are not required, enable the simplifications.
+    if model_type.agg_obj == MinimumMaximum() &&
+            model_type.type == PathFormulation() &&
+            model_type.algo == DualReformulation() &&
+            model_type.unc == ObliviousUncertainty() &&
+            model_type.uncparams == UncertainDemand() &&
+            ! model_simplifications
+        model_simplifications = ! model_robust_reformulation_traffic_matrices
+    end
+    # TODO: keep this code here or move it to a warning/error in the
+    # corresponding solver?
+
     stop = time_ns()
 
     return RoutingData(g, k, solver, name, (stop - start) / 1_000_000.,

@@ -24,12 +24,6 @@ inedges(g, v) = [Edge(iv, v) for iv in inneighbors(g, v)]
 outedges(g, v) = [Edge(v, ov) for ov in outneighbors(g, v)]
 
 
-# https://github.com/JuliaOpt/JuMP.jl/issues/2019
-function Base.getindex(reference_map::ReferenceMap, container::Union{Containers.DenseAxisArray, Containers.SparseAxisArray})
-    return getindex.(reference_map, container)
-end
-
-
 include("modeltype.jl")
 include("data/parameters.jl")
 include("data/model.jl")

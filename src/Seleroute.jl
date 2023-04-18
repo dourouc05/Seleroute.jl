@@ -24,6 +24,7 @@ inedges(g, v) = [Edge(iv, v) for iv in inneighbors(g, v)]
 outedges(g, v) = [Edge(v, ov) for ov in outneighbors(g, v)]
 
 
+include("sndlib.jl")
 include("modeltype.jl")
 include("data/parameters.jl")
 include("data/model.jl")

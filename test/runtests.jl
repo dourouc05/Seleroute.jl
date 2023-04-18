@@ -23,4 +23,7 @@ struct TestEdgeWise <: EdgeWiseObjectiveFunction end
         include("compute_certain.jl")
         include("compute_oblivious_demand.jl")
     end
+    @testset "IO" begin
+        include("sndlib.jl")
+    end
 end

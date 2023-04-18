@@ -235,10 +235,14 @@
             
             DEMANDS (
                 D1 ( N1 N2 ) 1 42.00 UNLIMITED
+                D2 ( N2 N1 ) 1 42.00 UNLIMITED
             )
             
             ADMISSIBLE_PATHS ( 
                 D1 (
+                    P_0 ( L1 )
+                )
+                D2 (
                     P_0 ( L1 )
                 )
             )

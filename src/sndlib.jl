@@ -177,6 +177,12 @@ function loadsnd(io::IO; error_on_admissible_path::Bool = true)
                 current_section = AdmissiblePathsForDemand
             end
 
+            if current_section != Header
+                continue
+            end
+        end
+        if current_section == AdmissiblePaths && endswith(line, "(")
+            current_section = AdmissiblePathsForDemand
             continue
         end
 
@@ -319,6 +325,15 @@ function loadsnd(io::IO; error_on_admissible_path::Bool = true)
     return g, k
 end
 
+function loadgraph(
+    file_path::AbstractString, ::AbstractString, ::SNDlibNativeFormat;
+    error_on_admissible_path::Bool = true
+)
+    io = open(file_path)
+    vals = loadsnd(io; error_on_admissible_path=error_on_admissible_path)
+    close(io)
+    return vals
+end
 loadgraph(
     io::IO, ::AbstractString, ::SNDlibNativeFormat;
     error_on_admissible_path::Bool = true

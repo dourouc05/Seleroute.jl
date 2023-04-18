@@ -194,7 +194,44 @@
             end
             @testset "Demand graph k has the right number of vertices and edges" begin
                 @test nv(k) == 2
-                @test ne(k) == 2
+                @test ne(k) == 0
+            end
+        end
+    end
+
+    @testset "Vertex with a dot in its name" begin
+        instance = """
+            ?SNDlib native format; type: network; version: 1.0
+            
+            NODES (
+                N.1 (1.0 2.0)
+                N.2 (1.0 2.0)
+            )
+            
+            LINKS (
+                L.1_N.1_N.2 ( N.1 N.2 ) 600.00 1200.00 0.00 0.00 (  )
+                L. ( N.2 N.1 ) 600.00 1200.00 0.00 0.00 ( )
+            )
+            
+            DEMANDS (
+            )
+            
+            ADMISSIBLE_PATHS ( 
+            )
+        """
+
+        g, k = Seleroute.loadgraph(
+            IOBuffer(instance), "useless graph name",
+            Seleroute.SNDlibNativeFormat())
+
+        @testset "Graph size" begin
+            @testset "Topology graph g has the right number of vertices and edges" begin
+                @test nv(g) == 2
+                @test ne(g) == 2
+            end
+            @testset "Demand graph k has the right number of vertices and edges" begin
+                @test nv(k) == 2
+                @test ne(k) == 0
             end
         end
     end

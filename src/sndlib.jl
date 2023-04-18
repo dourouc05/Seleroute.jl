@@ -60,7 +60,7 @@ function parse_int_or_float_or_unlimited(string::AbstractString)
 end
 
 function loadsnd(io::IO)
-    REGEX_ID = "[a-zA-Z0-9][a-zA-Z0-9-_]*"
+    REGEX_ID = raw"[a-zA-Z0-9][a-zA-Z0-9-_\.]*"
     REGEX_SPACE = "[ \t]+"
     REGEX_FLOAT = raw"-?\d+\.?\d*" # Either float or int.
 
@@ -120,8 +120,8 @@ function loadsnd(io::IO)
         $(REGEX_SPACE)
         (?<max_path_length>($(REGEX_FLOAT)|UNLIMITED))", "x")
 
-    g = MetaGraph() # Topology.
-    k = MetaGraph() # Demands.
+    g = MetaDiGraph() # Topology.
+    k = MetaDiGraph() # Demands.
 
     has_seen_header = false
     current_section = Header

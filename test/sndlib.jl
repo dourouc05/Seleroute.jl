@@ -29,8 +29,7 @@
         k_edges = [Edge(2, 3), Edge(3, 4)]
 
         g, k = loadgraph(
-            IOBuffer(instance), "useless graph name",
-            Seleroute.SNDlibNativeFormat())
+            IOBuffer(instance), "useless graph name", SNDlibNativeFormat())
 
         @testset "Graph size" begin
             @testset "Topology graph g has the right number of vertices and edges" begin
@@ -141,8 +140,7 @@
         """
 
         g, k = loadgraph(
-            IOBuffer(instance), "useless graph name",
-            Seleroute.SNDlibNativeFormat())
+            IOBuffer(instance), "useless graph name", SNDlibNativeFormat())
         
         @testset "Graph properties" begin
             @testset "Topology graph g has the right name" begin
@@ -178,8 +176,7 @@
         """
 
         g, k = loadgraph(
-            IOBuffer(instance), "useless graph name",
-            Seleroute.SNDlibNativeFormat())
+            IOBuffer(instance), "useless graph name", SNDlibNativeFormat())
 
         @testset "Graph size" begin
             @testset "Topology graph g has the right number of vertices and edges" begin
@@ -209,8 +206,7 @@
         """
 
         g, k = loadgraph(
-            IOBuffer(instance), "useless graph name",
-            Seleroute.SNDlibNativeFormat())
+            IOBuffer(instance), "useless graph name", SNDlibNativeFormat())
 
         @testset "Graph size" begin
             @testset "Topology graph g has the right number of vertices and edges" begin
@@ -251,13 +247,13 @@
         @testset "Errors when asked to" begin
             @test_throws ErrorException loadgraph(
                 IOBuffer(instance), "useless graph name",
-                Seleroute.SNDlibNativeFormat(), error_on_admissible_path=true)
+                SNDlibNativeFormat(), error_on_admissible_path=true)
         end
 
         @testset "Does not error when not asked to" begin
             g, k = loadgraph(
                 IOBuffer(instance), "useless graph name",
-                Seleroute.SNDlibNativeFormat(), error_on_admissible_path=false)
+                SNDlibNativeFormat(), error_on_admissible_path=false)
             @test nv(g) == 2
         end
     end

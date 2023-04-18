@@ -40,7 +40,15 @@
 struct SNDlibNativeFormat <: Graphs.AbstractGraphFormat end
 struct SNDlibXMLFormat <: Graphs.AbstractGraphFormat end # Unimplemented for now.
 
-@enum SNDlibNativeSection Header Meta Nodes Links Demands AdmissiblePaths
+@enum SNDlibNativeSection begin 
+    Header
+    Meta
+    Nodes
+    Links
+    Demands
+    AdmissiblePaths
+    AdmissiblePathsForDemand
+end
 # The section "Header" is also used between two sections, when one is ended and
 # another one has not yet started.
 
@@ -59,7 +67,7 @@ function parse_int_or_float_or_unlimited(string::AbstractString)
     end
 end
 
-function loadsnd(io::IO)
+function loadsnd(io::IO; error_on_admissible_path::Bool = true)
     REGEX_ID = raw"[a-zA-Z0-9][a-zA-Z0-9-_\.]*"
     REGEX_SPACE = "[ \t]+"
     REGEX_FLOAT = raw"-?\d+\.?\d*" # Either float or int.
@@ -164,12 +172,21 @@ function loadsnd(io::IO)
             elseif occursin("ADMISSIBLE_PATHS", line)
                 current_section = AdmissiblePaths
             end
+
+            if current_section == AdmissiblePaths
+                current_section = AdmissiblePathsForDemand
+            end
+
             continue
         end
 
         # Detect the section ending, if any.
         if current_section != Header && line == ")"
-            current_section = Header
+            current_section = if current_section == AdmissiblePathsForDemand
+                AdmissiblePaths
+            else
+                Header
+            end
             continue
         end
 
@@ -195,8 +212,8 @@ function loadsnd(io::IO)
 
         # All special cases are handled above: read the line as a part of the section.
         if current_section == Header
-            error("Inconsistent state; while in Header section, encountered ",
-                "the line: \"", line_stripped, "\"; expected a new section")
+            error("Inconsistent state: while in Header section, encountered ",
+                "the line \"", line_stripped, "\"; expected a new section")
         elseif current_section == Meta
             property, value = split(line, '=', limit=2)
             property = strip(property)
@@ -284,7 +301,16 @@ function loadsnd(io::IO)
         elseif current_section == AdmissiblePaths
             # Only case where admissible paths are expected to work: an empty
             # list. Rationale: how would you return them? A third value?
-            error("Admissible paths are not supported")
+            if error_on_admissible_path
+                error("Admissible paths are not supported")
+            end
+        elseif current_section == AdmissiblePathsForDemand
+            if error_on_admissible_path
+                # In theory, upon reaching a line within the ADMISSIBLE_PATHS
+                # section, parsing should stop; hence, this line should never
+                # be reached.
+                error("Inconsistent state: ", current_section, " not expected")
+            end
         else
             error("Inconsistent state: ", current_section, " not expected")
         end
@@ -293,5 +319,11 @@ function loadsnd(io::IO)
     return g, k
 end
 
-loadgraph(io::IO, ::String, ::SNDlibNativeFormat) = loadsnd(io)
-savegraph(io::IO, g::AbstractGraph, ::String, ::SNDlibNativeFormat) = savesnd(io, g)
+loadgraph(
+    io::IO, ::AbstractString, ::SNDlibNativeFormat;
+    error_on_admissible_path::Bool = true
+) = loadsnd(io; error_on_admissible_path=error_on_admissible_path)
+savegraph(
+    io::IO, g::AbstractGraph, ::AbstractString, ::SNDlibNativeFormat;
+    error_on_admissible_path::Bool = true
+) = savesnd(io, g; error_on_admissible_path=error_on_admissible_path)

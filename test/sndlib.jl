@@ -28,7 +28,7 @@
         g_edges = [Edge(1, 2), Edge(1, 3), Edge(1, 4)]
         k_edges = [Edge(2, 3), Edge(3, 4)]
 
-        g, k = Seleroute.loadgraph(
+        g, k = loadgraph(
             IOBuffer(instance), "useless graph name",
             Seleroute.SNDlibNativeFormat())
 
@@ -140,7 +140,7 @@
             )
         """
 
-        g, k = Seleroute.loadgraph(
+        g, k = loadgraph(
             IOBuffer(instance), "useless graph name",
             Seleroute.SNDlibNativeFormat())
         
@@ -175,15 +175,9 @@
                 L1_N1_N2 ( N1 N2 ) 600.00 1200.00 0.00 0.00 (  )
                 L ( N2 N1 ) 600.00 1200.00 0.00 0.00 ( )
             )
-            
-            DEMANDS (
-            )
-            
-            ADMISSIBLE_PATHS ( 
-            )
         """
 
-        g, k = Seleroute.loadgraph(
+        g, k = loadgraph(
             IOBuffer(instance), "useless graph name",
             Seleroute.SNDlibNativeFormat())
 
@@ -212,15 +206,9 @@
                 L.1_N.1_N.2 ( N.1 N.2 ) 600.00 1200.00 0.00 0.00 (  )
                 L. ( N.2 N.1 ) 600.00 1200.00 0.00 0.00 ( )
             )
-            
-            DEMANDS (
-            )
-            
-            ADMISSIBLE_PATHS ( 
-            )
         """
 
-        g, k = Seleroute.loadgraph(
+        g, k = loadgraph(
             IOBuffer(instance), "useless graph name",
             Seleroute.SNDlibNativeFormat())
 
@@ -233,6 +221,44 @@
                 @test nv(k) == 2
                 @test ne(k) == 0
             end
+        end
+    end
+    
+    @testset "Admissible paths" begin
+        instance = """
+            ?SNDlib native format; type: network; version: 1.0
+            
+            NODES (
+                N1 ( 1.00 2.00 )
+                N2 ( 2.00 1.00 )
+            )
+            
+            LINKS (
+                L1 ( N1 N2 ) 0.0 0.0 0.0 0.0 ( )
+            )
+            
+            DEMANDS (
+                D1 ( N1 N2 ) 1 42.00 UNLIMITED
+            )
+            
+            ADMISSIBLE_PATHS ( 
+                D1 (
+                    P_0 ( L1 )
+                )
+            )
+        """
+
+        @testset "Errors when asked to" begin
+            @test_throws ErrorException loadgraph(
+                IOBuffer(instance), "useless graph name",
+                Seleroute.SNDlibNativeFormat(), error_on_admissible_path=true)
+        end
+
+        @testset "Does not error when not asked to" begin
+            g, k = loadgraph(
+                IOBuffer(instance), "useless graph name",
+                Seleroute.SNDlibNativeFormat(), error_on_admissible_path=false)
+            @test nv(g) == 2
         end
     end
 end

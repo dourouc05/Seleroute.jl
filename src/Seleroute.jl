@@ -7,7 +7,7 @@ using Dates
 
 using Printf, Statistics, LinearAlgebra, SparseArrays, DelimitedFiles, Random
 import Base: summary, getindex
-import Graphs: edges, vertices
+import Graphs: edges, vertices, loadgraph, savegraph
 # import JuMP: copy_model
 
 const MOF = MOI.FileFormats

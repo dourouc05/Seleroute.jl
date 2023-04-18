@@ -40,7 +40,7 @@
 struct SNDlibNativeFormat <: Graphs.AbstractGraphFormat end
 struct SNDlibXMLFormat <: Graphs.AbstractGraphFormat end # Unimplemented for now.
 
-@enum SNDlibNativeSection Header Nodes Links Demands AdmissiblePaths
+@enum SNDlibNativeSection Header Meta Nodes Links Demands AdmissiblePaths
 # The section "Header" is also used between two sections, when one is ended and
 # another one has not yet started.
 
@@ -127,74 +127,81 @@ function loadsnd(io::IO)
     current_section = Header
     vertex_name_to_id = Dict{String, Int}() # Built in the Nodes section.
 
-	for line in readlines(io)
-		line = strip(line)
+    for line in readlines(io)
+        line = strip(line)
         line_stripped = line # Only useful for error messages.
 
-		if length(line) == 0
-			continue
-		end
+        if length(line) == 0
+            continue
+        end
 
-		# Handle comments. Ignore them, with few exceptions.
-		if startswith(line, '#')
-			line = strip(line[2:end])
+        # Handle comments. Ignore them, with few exceptions.
+        if startswith(line, '#')
+            line = strip(line[2:end])
 
-			# Recognise the graph name in some comments (not standardised),
-			# only in the header (not found anywhere else).
-			if current_section == Header && startswith(line, "network")
-				line = strip(line[8:end])
-				set_prop!(g, :graph_name, line)
-				continue
-			end
+            # Recognise the graph name in some comments (not standardised),
+            # only in the header (not found anywhere else).
+            if current_section == Header && startswith(line, "network")
+                line = strip(line[8:end])
+                set_prop!(g, :graph_name, line)
+                continue
+            end
 
-			# Ignore other comments; no information to retrieve from them.
-			continue
-		end
+            # Ignore other comments; no information to retrieve from them.
+            continue
+        end
 
-		# Detect the section opening, if any.
-		if current_section == Header && endswith(line, "(")
-			if occursin("NODES", line)
-				current_section = Nodes
-			elseif occursin("LINKS", line)
-				current_section = Links
-			elseif occursin("DEMANDS", line)
-				current_section = Demands
-			elseif occursin("ADMISSIBLE_PATHS", line)
-				current_section = AdmissiblePaths
-			end
-			continue
-		end
+        # Detect the section opening, if any.
+        if current_section == Header && endswith(line, "(")
+            if occursin("META", line)
+                current_section = Meta
+            elseif occursin("NODES", line)
+                current_section = Nodes
+            elseif occursin("LINKS", line)
+                current_section = Links
+            elseif occursin("DEMANDS", line)
+                current_section = Demands
+            elseif occursin("ADMISSIBLE_PATHS", line)
+                current_section = AdmissiblePaths
+            end
+            continue
+        end
 
-		# Detect the section ending, if any.
-		if current_section != Header && line == ")"
-			current_section = Header
-			continue
-		end
+        # Detect the section ending, if any.
+        if current_section != Header && line == ")"
+            current_section = Header
+            continue
+        end
 
-		# Read the header line.
-		if current_section == Header && startswith(line, '?') # Header.
-			# Expected header (only networks supported):
-			# ?SNDlib native format; type: network; version: 1.0
-			EXPECTED_NO_WHITESPACE_HEADER = "SNDlibnativeformattypenetworkversion10"
-			if replace(line, r"\W" => "") != EXPECTED_NO_WHITESPACE_HEADER
-				error("Unexpected header line: \"", line_stripped, "\"")
-			end
+        # Read the header line.
+        if current_section == Header && startswith(line, '?') # Header.
+            # Expected header (only networks supported):
+            # ?SNDlib native format; type: network; version: 1.0
+            EXPECTED_NO_WHITESPACE_HEADER = "SNDlibnativeformattypenetworkversion10"
+            if replace(line, r"\W" => "") != EXPECTED_NO_WHITESPACE_HEADER
+                error("Unexpected header line: \"", line_stripped, "\"")
+            end
 
-			has_seen_header = true
-			continue
-		end
+            has_seen_header = true
+            continue
+        end
 
-		# Before reading anything in the instance, ensure that the header is
-		# somewhere. Otherwise, it's possible that this instance contains some
-		# 2.0 constructs, totally unsupported for now.
-		if !has_seen_header
-			error("Non-comment line before header: \"", line_stripped, "\"")
-		end
+        # Before reading anything in the instance, ensure that the header is
+        # somewhere. Otherwise, it's possible that this instance contains some
+        # 2.0 constructs, totally unsupported for now.
+        if !has_seen_header
+            error("Non-comment line before header: \"", line_stripped, "\"")
+        end
 
-		# All special cases are handled above: read the line as a part of the section.
-		if current_section == Header
-			error("Inconsistent state; while in Header section, encountered ",
+        # All special cases are handled above: read the line as a part of the section.
+        if current_section == Header
+            error("Inconsistent state; while in Header section, encountered ",
                 "the line: \"", line_stripped, "\"; expected a new section")
+        elseif current_section == Meta
+            property, value = split(line, '=', limit=2)
+            property = strip(property)
+            value = strip(value)
+            set_prop!(g, Symbol(property), value)
         elseif current_section == Nodes
             # Node format:
             #     node_id ( x-coordinate y-coordinate )
@@ -278,10 +285,12 @@ function loadsnd(io::IO)
             # Only case where admissible paths are expected to work: an empty
             # list. Rationale: how would you return them? A third value?
             error("Admissible paths are not supported")
+        else
+            error("Inconsistent state: ", current_section, " not expected")
         end
-	end
+    end
 
-	return g, k
+    return g, k
 end
 
 loadgraph(io::IO, ::String, ::SNDlibNativeFormat) = loadsnd(io)

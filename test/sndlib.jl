@@ -105,4 +105,84 @@
             end
         end
     end
+    
+    @testset "Meta instance" begin
+        instance = """
+            ?SNDlib native format; type: network; version: 1.0
+            # network test
+
+            META (
+            granularity = 6month
+            time = 2000
+            unit = MBITPERSEC
+            origin = total demand 3Tbps
+            )
+            
+            NODES (
+                N1 ( 1.00 2.00 )
+                N2 (-1.00 -2.0 )
+                N3 ( 1.00 -2.00)
+                N4 (-1.00 -2.00)
+            )
+            
+            LINKS (
+                L1_N1_N2 ( N1 N2 ) 0.00 0.00 0.00 0.00 ( 42.0 84 )
+                L2_N1_N3 ( N1 N3 ) 0.00 0.00 0.00 0.00 ( -420 56.0 84.0 -112 )
+                L3_N1_N4 ( N1 N4 ) 0.00 0.00 0.00 0.00 ( UNLIMITED 0.0 )
+            )
+            
+            DEMANDS (
+                D1_N2_N3 ( N2 N3 ) 1 42.00 UNLIMITED
+                D2_N3_N4 ( N3 N4 ) 1 42.00 5
+            )
+            
+            ADMISSIBLE_PATHS ( 
+            )
+        """
+
+        g, k = Seleroute.loadgraph(
+            IOBuffer(instance), "useless graph name",
+            Seleroute.SNDlibNativeFormat())
+        
+        @testset "Graph properties" begin
+            @testset "Topology graph g has the right name" begin
+                @test get_prop(g, :graph_name) == "test"
+            end
+            @testset "Demand graph k has the right name" begin
+                @test get_prop(g, :graph_name) == "test"
+            end
+            @testset "Topology graph g has the right meta fields" begin
+                @test get_prop(g, :granularity) == "6month"
+                @test get_prop(g, :time) == "2000"
+                @test get_prop(g, :unit) == "MBITPERSEC"
+                @test get_prop(g, :origin) == "total demand 3Tbps"
+            end
+        end
+    end
+
+    @testset "Link with empty capacity-cost list" begin
+        instance = """
+            ?SNDlib native format; type: network; version: 1.0
+            # network test
+            
+            NODES (
+                N1 (1.0 2.0)
+                N2 (1.0 2.0)
+            )
+            
+            LINKS (
+                L1_N1_N2 ( N1 N2 ) 0.00 0.00 0.00 0.00 (  )
+            )
+            
+            DEMANDS (
+            )
+            
+            ADMISSIBLE_PATHS ( 
+            )
+        """
+
+        g, k = Seleroute.loadgraph(
+            IOBuffer(instance), "useless graph name",
+            Seleroute.SNDlibNativeFormat())
+    end
 end

@@ -92,7 +92,7 @@ function loadsnd(io::IO)
         (?<setup_cost>$(REGEX_FLOAT))
         $(REGEX_SPACE)
         \\(
-            $(REGEX_SPACE)?
+            ($(REGEX_SPACE))?
             (?<capacity_cost_list>
                 (
                     ($(REGEX_SPACE))?
@@ -102,7 +102,7 @@ function loadsnd(io::IO)
                     ($(REGEX_SPACE))?
                 )*
             )
-            $(REGEX_SPACE)?
+            ($(REGEX_SPACE))?
         \\)", "x")
     REGEX_DEMAND = Regex(
         "(?<id>$(REGEX_ID)) $(REGEX_SPACE)

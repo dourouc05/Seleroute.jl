@@ -161,6 +161,7 @@
     end
 
     @testset "Link with empty capacity-cost list" begin
+        # The problem was the number of spaces between the parentheses.
         instance = """
             ?SNDlib native format; type: network; version: 1.0
             # network test
@@ -171,7 +172,8 @@
             )
             
             LINKS (
-                L1_N1_N2 ( N1 N2 ) 0.00 0.00 0.00 0.00 (  )
+                L1_N1_N2 ( N1 N2 ) 600.00 1200.00 0.00 0.00 (  )
+                L ( N2 N1 ) 600.00 1200.00 0.00 0.00 ( )
             )
             
             DEMANDS (
@@ -184,5 +186,16 @@
         g, k = Seleroute.loadgraph(
             IOBuffer(instance), "useless graph name",
             Seleroute.SNDlibNativeFormat())
+
+        @testset "Graph size" begin
+            @testset "Topology graph g has the right number of vertices and edges" begin
+                @test nv(g) == 2
+                @test ne(g) == 2
+            end
+            @testset "Demand graph k has the right number of vertices and edges" begin
+                @test nv(k) == 2
+                @test ne(k) == 2
+            end
+        end
     end
 end

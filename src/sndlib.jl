@@ -322,6 +322,8 @@ function loadsnd(io::IO; error_on_admissible_path::Bool = true)
         end
     end
 
+    weightfield!(g, :routing_cost)
+    weightfield!(k, :demand_value)
     return g, k
 end
 

@@ -164,7 +164,7 @@ function _add_path_to_subproblem_formulation(rd::RoutingData, s_rm::RoutingModel
     end
 end
 
-function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::MinimumMaximum, formulation::FormulationType, ::Val{true}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
+function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::MinimumMaximum, formulation::FormulationType, ::Val{true}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand, timeout::Period)
     n_new_paths = 0
     @assert rm.mu !== nothing
 
@@ -174,11 +174,20 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::Minim
 
     while true
         m = rm.model
-        
-        # Enfore the timeout. This value is much higher than it should be, because
-        # this function has no access to the starting time of `compute_routing`.
+
+        # Enfore the timeout (the argument has precedence over the value in
+        # RoutingData, because it depends on the time elapsed in previous
+        # iterations).
+        actual_timeout = Nanosecond(0)
         if rd.timeout.value > 0
-            set_time_limit_sec(rm.model, floor(rd.timeout, Second).value)
+            actual_timeout = rd.timeout
+        end
+        if timeout.value > 0
+            actual_timeout = timeout
+        end
+    
+        if timeout.value > 0
+            set_time_limit_sec(rm.model, floor(actual_timeout, Second).value)
         end
 
         # Solve the current master problem.

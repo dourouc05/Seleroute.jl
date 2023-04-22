@@ -191,7 +191,7 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load,
         end
     
         if timeout.value > 0
-            set_time_limit_sec(rm.model, floor(actual_timeout, Nanosecond).value)
+            set_time_limit_sec(rm.model, floor(actual_timeout, Second).value)
         end
 
         # Solve the current master problem.

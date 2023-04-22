@@ -207,7 +207,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
 
         # Solve the current master problem, possibly with column generation.
         result, current_routing, n_new_paths, current_routing_nb_paths =
-            solve_master_problem(rd, rm, rd.model_type, floor(rd.timeout - currently_elapsed_time, Nanosecond))
+            solve_master_problem(rd, rm, rd.model_type, convert(Nanosecond, rd.timeout - currently_elapsed_time))
         push!(times_master_ms, (time_ns() - start_iter) / 1_000_000.)
         total_new_paths += n_new_paths
         total_new_paths_master += n_new_paths

@@ -75,11 +75,20 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::Minim
     return result, current_routing, 0, 0
 end
 
-function solve_subproblem(rd::RoutingData, ::RoutingModel, s_rm::RoutingModel, e_bar::Edge, ::Load, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
-    # Enfore the timeout. This value is much higher than it should be, because
-    # this function has no access to the starting time of `compute_routing`.
+function solve_subproblem(rd::RoutingData, ::RoutingModel, s_rm::RoutingModel, e_bar::Edge, ::Load, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand, timeout::Period)
+    # Enfore the timeout (the argument has precedence over the value in
+    # RoutingData, because it depends on the time elapsed in previous
+    # iterations).
+    actual_timeout = Nanosecond(0)
     if rd.timeout.value > 0
-        set_time_limit_sec(s_rm.model, floor(rd.timeout, Second).value)
+        actual_timeout = rd.timeout
+    end
+    if timeout.value > 0
+        actual_timeout = timeout
+    end
+
+    if timeout.value > 0
+        set_time_limit_sec(rm.model, floor(actual_timeout, Second).value)
     end
 
     optimize!(s_rm.model)

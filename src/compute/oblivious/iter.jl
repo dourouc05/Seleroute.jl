@@ -1,7 +1,5 @@
 # Based on Optimal Oblivious Routing in Polynomial Time
 # http://ttic.uchicago.edu/~harry/pdf/optimal_oblivious_journal.pdf
-# Oblivious ratio: O(log^2 n log log n), n number of nodes
-# http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.4.3883&rep=rep1&type=pdf: theorem 1, p. 9
 
 # Useful data structures for all oblivious iterative algorithms.
 # TODO: also makes sense for robust, move it upwards?

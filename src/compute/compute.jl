@@ -26,4 +26,6 @@ function compute_routing(::RoutingData, edge_obj::EdgeWiseObjectiveFunction,
     msg *= "These models are available:\n"
     msg *= string(methods(compute_routing))
     error(msg)
+
+    show(STDOUT, MIME"text/plain"(), stacktrace())
 end

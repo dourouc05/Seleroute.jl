@@ -2,9 +2,9 @@
 
 basic_routing_model_unitary(m::Model, rd::RoutingData) =
     basic_routing_model_unitary(m, rd, rd.model_type.type)
-basic_routing_model_unitary(m::Model, rd::RoutingData, ::Any...) =
+basic_routing_model_unitary(::Model, rd::RoutingData, ::Any...) =
     error("Not implemented: $(rd.model_type)")
-basic_routing_model_unscaled(m::Model, rd::RoutingData, ::Any...) =
+basic_routing_model_unscaled(::Model, rd::RoutingData, ::Any...) =
     error("Not implemented: $(rd.model_type)")
 
 function total_flow_in_edge(rm::RoutingModel, e::Edge)

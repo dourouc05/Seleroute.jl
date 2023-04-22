@@ -34,18 +34,17 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
         end
 
         # Solve the current master problem.
-        m = rm.model
-        optimize!(m)
+        optimize!(rm.model)
 
         push!(times_master_ms, (time_ns() - start_iter) / 1_000_000.)
-        result = termination_status(m)
+        result = termination_status(rm.model)
 
         if result == MOI.TIME_LIMIT
             break
         end
         
         push!(routings, Routing(rd, value.(rm.routing)))
-        push!(objectives, objective_value(m))
+        push!(objectives, objective_value(rm.model))
         current_routing_nb_paths = count(value.(rm.routing) .>= CPLEX_REDUCED_COST_TOLERANCE)
 
         # Export if needed. TODO: use iteration number.
@@ -84,7 +83,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
                 set_normalized_coefficient(rm.constraints_uncertainty_set[e][d], rm.routing[d, path_id], 1)
 
                 # - Create the new constraint.
-                @constraint(m, rm.dual_alpha[e, d] + sum(rm.dual_beta[e, e2] for e2 in path) >= 0)
+                @constraint(rm.model, rm.dual_alpha[e, d] + sum(rm.dual_beta[e, e2] for e2 in path) >= 0)
             end
         end
 

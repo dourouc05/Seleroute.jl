@@ -206,7 +206,7 @@ function RoutingData(g::AbstractMetaGraph, # Not MetaDiGraph, to show a more int
     end
 
     if ! is_directed(g)
-        error("The demand graph is not directed!")
+        error("The topology graph is not directed!")
     end
     if ! is_directed(k)
         error("The demand graph is not directed!")

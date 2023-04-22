@@ -14,9 +14,9 @@ function get_traffic_matrices(rm::RoutingModel)
     return collect(l_tm)
 end
 
-function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, formulation::FormulationType, ::Val{false}, ::DualReformulation, ::ObliviousUncertainty, ::UncertainDemand)
+function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::FormulationType, ::Val{false}, ::DualReformulation, ::ObliviousUncertainty, ::UncertainDemand)
     start = time_ns()
-    rm = master_formulation(rd, formulation)
+    rm = master_formulation(rd, type)
     time_create_master_model_ms = (time_ns() - start) / 1_000_000.
 
     # Enforce the timeout on the solver: it will take more time in this

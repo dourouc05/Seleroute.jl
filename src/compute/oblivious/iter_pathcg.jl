@@ -159,12 +159,16 @@ function _add_path_to_subproblem_formulation(rd::RoutingData, s_rm::RoutingModel
     # Capacity constraints.
     for e in edges(rd)
         if e in rd.paths_edges[path_id]
-            set_normalized_coefficient(s_rm.constraints_capacity[e], s_rm.routing[demand, path_id], 1)
+            set_normalized_coefficient(
+                s_rm.constraints_capacity[e], s_rm.routing[demand, path_id], 1)
         end
     end
 end
 
-function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::MinimumMaximum, formulation::FormulationType, ::Val{true}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand, timeout::Period)
+function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load,
+                              ::MinimumMaximum, ::PathFormulation, ::Val{true},
+                              ::CuttingPlane, ::ObliviousUncertainty,
+                              ::UncertainDemand, timeout::Period)
     n_new_paths = 0
     @assert rm.mu !== nothing
 
@@ -187,7 +191,7 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::Minim
         end
     
         if timeout.value > 0
-            set_time_limit_sec(rm.model, floor(actual_timeout, Second).value)
+            set_time_limit_sec(rm.model, floor(actual_timeout, Nanosecond).value)
         end
 
         # Solve the current master problem.

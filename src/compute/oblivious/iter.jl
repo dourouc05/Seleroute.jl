@@ -37,11 +37,15 @@ add_traffic_matrix(rm::RoutingModel, matrix::Dict{Edge{Int}, Float64}, ::Any) =
 """
 Return values: `result`, `current_routing`, `n_new_paths`.
 """
-solve_master_problem(rd::RoutingData, ::RoutingModel, ::Any...) =
-    error("Model type not yet implemented (master problem for iterative solving of oblivious routing): $(rd.model_type)")
+solve_master_problem(rd::RoutingData, ::RoutingModel, anies::Any...) =
+    error("Model type not yet implemented (master problem for iterative " *
+        "solving of oblivious routing): $(rd.model_type). Final set of " *
+        "arguments: " * string(anies))
 
-solve_master_problem(rd::RoutingData, rm::RoutingModel, mt::ModelType, timeout::Period) =
-    solve_master_problem(rd, rm, mt.edge_obj, mt.agg_obj, mt.type, Val(mt.cg), mt.algo, mt.unc, mt.uncparams, timeout)
+solve_master_problem(rd::RoutingData, rm::RoutingModel, mt::ModelType,
+                     timeout::Period) =
+    solve_master_problem(rd, rm, mt.edge_obj, mt.agg_obj, mt.type, Val(mt.cg),
+                         mt.algo, mt.unc, mt.uncparams, timeout)
 
 """
 Return values: `result`, `n_new_paths`, `candidate_matrix`.
@@ -50,7 +54,11 @@ solve_subproblem(rd::RoutingData, ::RoutingModel, rm::RoutingModel, e_bar::Edge,
     error("Model type not yet implemented (matrix-generation subproblem for iterative solving of oblivious routing): $(rd.model_type)")
 
 # Default implementation of the master problem and subproblem. It works without trouble if there is no column generation.
-function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand, timeout::Period)
+function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load,
+                              ::MinimumMaximum, ::FormulationType,
+                              ::Val{false}, ::CuttingPlane,
+                              ::ObliviousUncertainty, ::UncertainDemand,
+                              timeout::Period)
     @assert rm.mu !== nothing
 
     # Enfore the timeout (the argument has precedence over the value in
@@ -198,7 +206,8 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
         end
 
         # Solve the current master problem, possibly with column generation.
-        result, current_routing, n_new_paths, current_routing_nb_paths = solve_master_problem(rd, rm, rd.model_type, rd.timeout - currently_elapsed_time)
+        result, current_routing, n_new_paths, current_routing_nb_paths =
+            solve_master_problem(rd, rm, rd.model_type, floor(rd.timeout - currently_elapsed_time, Nanosecond))
         push!(times_master_ms, (time_ns() - start_iter) / 1_000_000.)
         total_new_paths += n_new_paths
         total_new_paths_master += n_new_paths

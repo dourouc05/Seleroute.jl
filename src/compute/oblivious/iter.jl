@@ -83,7 +83,10 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load,
     return result, current_routing, 0, 0
 end
 
-function solve_subproblem(rd::RoutingData, ::RoutingModel, s_rm::RoutingModel, e_bar::Edge, ::Load, ::MinimumMaximum, ::FormulationType, ::Val{false}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand, timeout::Period)
+function solve_subproblem(rd::RoutingData, ::RoutingModel, s_rm::RoutingModel,
+                          e_bar::Edge, ::Load, ::MinimumMaximum,
+                          ::FormulationType, ::Val{false}, ::CuttingPlane,
+                          ::ObliviousUncertainty, ::UncertainDemand, timeout::Period)
     # Enfore the timeout (the argument has precedence over the value in
     # RoutingData, because it depends on the time elapsed in previous
     # iterations).
@@ -244,24 +247,31 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
         for e_bar in edges(rd)
             if n_edges_done % 20 == 0
                 rd.logmessage("Solving the subproblem... Edge $(n_edges_done) out of $(n_edges(rd))")
-                
-                # Enforce the timeout.
-                if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
-                    result = MOI.TIME_LIMIT
-                    timed_out = true
-                    break
-                end
             end
 
-            # Solve the corresponding separation problem.
+            # Enforce the timeout.
+            if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
+                result = MOI.TIME_LIMIT
+                timed_out = true
+                break
+            end
+
+            # Create the corresponding separation problem.
             # TODO: what about creating these models beforehand? Too much memory?
             start_sub_model = time_ns()
             s_m = _create_model(rd)
             s_rm = oblivious_subproblem_model(s_m, rd, e_bar, current_routing, type)
-            time_create_sub_model_ms += (time_ns() - start_sub_model) / 1_000_000.
+            created_sub_model = time_ns()
+            time_create_sub_model_ms += (created_sub_model - start_sub_model) / 1_000_000.
 
+            currently_elapsed_time = Nanosecond(created_sub_model - start)
+
+            # Solve the corresponding separation problem.
             start_sub_solve = time_ns()
-            s_result, n_sub_new_paths, candidate_matrix = solve_subproblem(rd, rm, s_rm, e_bar, Load(), MinimumMaximum(), type, cg, CuttingPlane(), ObliviousUncertainty(), UncertainDemand())
+            s_result, n_sub_new_paths, candidate_matrix = solve_subproblem(
+                rd, rm, s_rm, e_bar, Load(), MinimumMaximum(), type, cg,
+                CuttingPlane(), ObliviousUncertainty(), UncertainDemand(), 
+                convert(Nanosecond, rd.timeout - currently_elapsed_time))
             times_sub_ms[end] += (time_ns() - start_sub_solve) / 1_000_000.
             n_new_paths_this_iter += n_sub_new_paths
             total_new_paths += n_sub_new_paths

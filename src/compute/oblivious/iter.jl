@@ -24,7 +24,7 @@ end
 
 # Interface for a formulation and default implementations (only providing error messages).
 
-oblivious_subproblem_model(m::Model, rd::RoutingData, e_bar::Edge, current_routing::Routing, ::Any...) =
+oblivious_subproblem_model(::Model, rd::RoutingData, ::Edge, ::Routing, ::Any...) =
     error("Not implemented: $(rd.sub_model_type)")
 
 add_traffic_matrix(rm::RoutingModel, matrix::ConsideredTrafficMatrix) =

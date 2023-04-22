@@ -30,7 +30,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
         end
 
         if rd.timeout.value > 0
-            set_time_limit_sec(rm.model, convert(Second, rd.timeout - currently_elapsed_time).value)
+            set_time_limit_sec(rm.model, floor(rd.timeout - currently_elapsed_time, Second).value)
         end
 
         # Solve the current master problem.

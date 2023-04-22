@@ -86,7 +86,8 @@ end
 function solve_subproblem(rd::RoutingData, ::RoutingModel, s_rm::RoutingModel,
                           e_bar::Edge, ::Load, ::MinimumMaximum,
                           ::FormulationType, ::Val{false}, ::CuttingPlane,
-                          ::ObliviousUncertainty, ::UncertainDemand, timeout::Period)
+                          ::ObliviousUncertainty, ::UncertainDemand,
+                          timeout::Period)
     # Enfore the timeout (the argument has precedence over the value in
     # RoutingData, because it depends on the time elapsed in previous
     # iterations).
@@ -102,6 +103,7 @@ function solve_subproblem(rd::RoutingData, ::RoutingModel, s_rm::RoutingModel,
         set_time_limit_sec(rm.model, floor(actual_timeout, Second).value)
     end
 
+    # Solve the subproblem.
     optimize!(s_rm.model)
     s_result = termination_status(s_rm.model)
 

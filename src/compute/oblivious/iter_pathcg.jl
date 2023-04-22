@@ -182,16 +182,22 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load,
         # Enfore the timeout (the argument has precedence over the value in
         # RoutingData, because it depends on the time elapsed in previous
         # iterations).
-        actual_timeout = Nanosecond(0)
+        remaining_timeout = Nanosecond(0)
         if rd.timeout.value > 0
-            actual_timeout = rd.timeout
+            remaining_timeout = rd.timeout
         end
         if timeout.value > 0
-            actual_timeout = timeout
+            remaining_timeout = timeout
+        end
+        
+        currently_elapsed_time = Nanosecond(start_iter - start)
+        if rd.timeout.value > 0 && currently_elapsed_time >= remaining_timeout
+            result = MOI.TIME_LIMIT
+            break
         end
     
-        if timeout.value > 0
-            set_time_limit_sec(rm.model, floor(actual_timeout, Second).value)
+        if remaining_timeout.value > 0
+            set_time_limit_sec(rm.model, floor(remaining_timeout, Second).value)
         end
 
         # Solve the current master problem.
@@ -201,6 +207,9 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load,
         current_routing_nb_paths = count(value.(rm.routing) .>= CPLEX_REDUCED_COST_TOLERANCE)
 
         # Check if there are still columns to add.
+        # Don't check for timeouts here, it should be sufficient to perform it
+        # once per iteration of column generation (instead of once per pricing
+        # subproblem).
         dual_values_matrices = Dict(tm => Dict(e => dual(constraint) for (e, constraint) in d) for (tm, d) in rm.constraints_matrices)
         dual_value_convexity = dual.(rm.constraints_convexity)
         matrices = collect(keys(rm.constraints_matrices))
@@ -224,16 +233,48 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load,
     return result, current_routing, n_new_paths, current_routing_nb_paths
 end
 
-function solve_subproblem(rd::RoutingData, rm::RoutingModel, s_rm::RoutingModel, e_bar::Edge, ::Load, ::MinimumMaximum, ::FormulationType, ::Val{true}, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
+function solve_subproblem(rd::RoutingData, rm::RoutingModel,
+                          s_rm::RoutingModel, e_bar::Edge, ::Load,
+                          ::MinimumMaximum, ::FormulationType, ::Val{true},
+                          ::CuttingPlane, ::ObliviousUncertainty,
+                          ::UncertainDemand, timeout::Period)    
+    # Solve the subproblem.
     n_new_paths = 0
     result = nothing
 
     while true
+        start_iter = time_ns()
+        # TODO: store the timings for each iteration?
+
+        # Enfore the timeout (the argument has precedence over the value in
+        # RoutingData, because it depends on the time elapsed in previous
+        # iterations).
+        remaining_timeout = Nanosecond(0)
+        if rd.timeout.value > 0
+            remaining_timeout = rd.timeout
+        end
+        if timeout.value > 0
+            remaining_timeout = timeout
+        end
+        
+        currently_elapsed_time = Nanosecond(start_iter - start)
+        if rd.timeout.value > 0 && currently_elapsed_time >= remaining_timeout
+            result = MOI.TIME_LIMIT
+            break
+        end
+    
+        if remaining_timeout.value > 0
+            set_time_limit_sec(s_rm.model, floor(remaining_timeout, Second).value)
+        end
+
         # Solve the current subproblem.
         optimize!(s_rm.model)
         result = termination_status(s_rm.model)
 
         # Check if there are still columns to add.
+        # Don't check for timeouts here, it should be sufficient to perform it
+        # once per iteration of column generation (instead of once per pricing
+        # subproblem).
         dual_values_capacity = Dict(e => dual(constraint) for (e, constraint) in s_rm.constraints_capacity)
 
         rd.logmessage("Subpricing for edge $e_bar")

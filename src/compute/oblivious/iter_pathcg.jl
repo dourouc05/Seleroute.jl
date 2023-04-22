@@ -203,7 +203,9 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load,
         # Solve the current master problem.
         optimize!(m)
         result = termination_status(m)
-        current_routing = Routing(rd, value.(rm.routing)) # TODO: remember all generated routings.
+        current_routing = Routing(rd, value.(rm.routing)) # TODO: remember all
+        # generated routings. For now, there is only one routing memorised for
+        # each outer-loop iteration (when addind new matrices).
         current_routing_nb_paths = count(value.(rm.routing) .>= CPLEX_REDUCED_COST_TOLERANCE)
 
         # Check if there are still columns to add.

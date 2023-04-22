@@ -100,7 +100,7 @@ function solve_subproblem(rd::RoutingData, ::RoutingModel, s_rm::RoutingModel,
     end
 
     if timeout.value > 0
-        set_time_limit_sec(rm.model, floor(actual_timeout, Second).value)
+        set_time_limit_sec(s_rm.model, floor(actual_timeout, Second).value)
     end
 
     # Solve the subproblem.

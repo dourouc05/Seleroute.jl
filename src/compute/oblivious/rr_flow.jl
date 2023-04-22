@@ -1,6 +1,13 @@
 function master_formulation(rd::RoutingData, type::FlowFormulation)
+    # Enforce the timeout based on this starting time. This is not super
+    # precise, as start is computed when starting modelling, i.e. not when the
+    # user expects it (call to compute_routing), but quite close (not much to
+    # do before creating the formulation).
+    # Modelling can be quite expensive for this formulation, due to O(n³)
+    # variables and constraints.
     start = time_ns()
 
+    # Start creating the model.
     m = _create_model(rd)
     rm = basic_routing_model_unitary(m, rd, type) # Includes flow-conservation constraints.
 
@@ -10,8 +17,7 @@ function master_formulation(rd::RoutingData, type::FlowFormulation)
     @variable(m, dual_alpha[e in edges(rd), d in demands(rd), v in vertices(rd)])
     @variable(m, dual_beta[e in edges(rd), e2 in edges(rd)] >= 0)
 
-    # Enforce the timeout. This is not super precise, as start is computed
-    # when starting modelling, i.e. not when the user expects it.
+    # Enforce the timeout.
     if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
         return RoutingModel(rd, m, UnitaryFlows, nothing)
     end
@@ -36,8 +42,7 @@ function master_formulation(rd::RoutingData, type::FlowFormulation)
             end
         end
 
-        # Enforce the timeout. This is not super precise, as start is computed
-        # when starting modelling, i.e. not when the user expects it.
+        # Enforce the timeout.
         if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
             return RoutingModel(rd, m, UnitaryFlows, nothing)
         end

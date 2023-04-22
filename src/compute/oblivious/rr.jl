@@ -14,13 +14,15 @@ function get_traffic_matrices(rm::RoutingModel)
     return collect(l_tm)
 end
 
-function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::FormulationType, ::Val{false}, ::DualReformulation, ::ObliviousUncertainty, ::UncertainDemand)
+function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum,
+                         type::FormulationType, ::Val{false},
+                         ::DualReformulation, ::ObliviousUncertainty,
+                         ::UncertainDemand)
     start = time_ns()
     rm = master_formulation(rd, type)
     time_create_master_model_ms = (time_ns() - start) / 1_000_000.
 
-    # Enforce the timeout on the solver: it will take more time in this
-    # function than modelling (but modelling can be expensive).
+    # Enforce the timeout.
     result = MOI.OPTIMAL
     if rd.timeout.value > 0
         set_time_limit_sec(rm.model, floor(rd.timeout, Second).value)
@@ -66,7 +68,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
 
     stop = time_ns()
 
-    # TODO: Export things like the normal case.
+    # TODO: Export things like the iterative case.
 
     return RoutingSolution(rd,
                            result=result,

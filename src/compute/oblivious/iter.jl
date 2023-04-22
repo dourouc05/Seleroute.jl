@@ -168,7 +168,9 @@ end
 # Main loop for all iterative implementations of oblivious routing for uncertain demand.
 # Also works with column generation.
 
-function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::FormulationType, cg::Val, ::CuttingPlane, ::ObliviousUncertainty, ::UncertainDemand)
+function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum,
+                         type::FormulationType, cg::Val, ::CuttingPlane,
+                         ::ObliviousUncertainty, ::UncertainDemand)
     # Create the master problem.
     start = time_ns()
     m = _create_model(rd)
@@ -203,16 +205,23 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
     while true
         start_iter = time_ns()
 
-        # Enforce the timeout.
+        # Enfore the timeout. This code is specific, as it is implemented at
+        # the outer loop.
         currently_elapsed_time = Nanosecond(start_iter - start)
-        if rd.timeout.value > 0 && currently_elapsed_time >= rd.timeout
+        remaining_timeout = convert(Nanosecond, (if rd.timeout.value > 0
+            remaining_timeout = rd.timeout
+        else
+            Nanosecond(0)
+        end) - currently_elapsed_time)
+        
+        if rd.timeout.value > 0 && currently_elapsed_time >= remaining_timeout
             result = MOI.TIME_LIMIT
             break
         end
 
         # Solve the current master problem, possibly with column generation.
         result, current_routing, n_new_paths, current_routing_nb_paths =
-            solve_master_problem(rd, rm, rd.model_type, convert(Nanosecond, rd.timeout - currently_elapsed_time))
+            solve_master_problem(rd, rm, rd.model_type, remaining_timeout)
         push!(times_master_ms, (time_ns() - start_iter) / 1_000_000.)
         total_new_paths += n_new_paths
         total_new_paths_master += n_new_paths
@@ -252,14 +261,22 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
             end
 
             # Enforce the timeout.
-            if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
-                result = MOI.TIME_LIMIT
+            currently_elapsed_time = Nanosecond(time_ns() - start)
+            remaining_timeout = convert(Nanosecond, (if rd.timeout.value > 0
+                remaining_timeout = rd.timeout
+            else
+                Nanosecond(0)
+            end) - currently_elapsed_time)
+            
+            if rd.timeout.value > 0 && currently_elapsed_time >= remaining_timeout
+                s_result = MOI.TIME_LIMIT
                 timed_out = true
                 break
             end
 
             # Create the corresponding separation problem.
-            # TODO: what about creating these models beforehand? Too much memory?
+            # TODO: what about creating all these models beforehand? Would it
+            # take too much memory? Would it improve runtimes significantly?
             start_sub_model = time_ns()
             s_m = _create_model(rd)
             s_rm = oblivious_subproblem_model(s_m, rd, e_bar, current_routing, type)
@@ -268,12 +285,26 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
 
             currently_elapsed_time = Nanosecond(created_sub_model - start)
 
-            # Solve the corresponding separation problem.
+            # Enforce the timeout.
             start_sub_solve = time_ns()
+            currently_elapsed_time = Nanosecond(start_sub_solve - start)
+            remaining_timeout = convert(Nanosecond, (if rd.timeout.value > 0
+                remaining_timeout = rd.timeout
+            else
+                Nanosecond(0)
+            end) - currently_elapsed_time)
+            
+            if rd.timeout.value > 0 && currently_elapsed_time >= remaining_timeout
+                s_result = MOI.TIME_LIMIT
+                timed_out = true
+                break
+            end
+
+            # Solve the corresponding separation problem.
             s_result, n_sub_new_paths, candidate_matrix = solve_subproblem(
                 rd, rm, s_rm, e_bar, Load(), MinimumMaximum(), type, cg,
-                CuttingPlane(), ObliviousUncertainty(), UncertainDemand(), 
-                convert(Nanosecond, rd.timeout - currently_elapsed_time))
+                CuttingPlane(), ObliviousUncertainty(), UncertainDemand(),
+                remaining_timeout)
             times_sub_ms[end] += (time_ns() - start_sub_solve) / 1_000_000.
             n_new_paths_this_iter += n_sub_new_paths
             total_new_paths += n_sub_new_paths
@@ -289,7 +320,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
             # - if so:
             #     - only one traffic matrix per iteration: is it better than the current one (if there is any)?
             #     - any number of traffix matrices per iteration: just add it.
-            if objective_value(s_m) > objectives[end] # TODO: Add a specific data structure for the subproblem and rather use a function to make the comparison?
+            if objective_value(s_m) > objectives[end]
                 # This matrix could improve the master problem. Should it still be considered?
                 add_matrix = rd.model_all_traffic_matrices || length(interesting_matrices) == 0
                 replace_top_matrix = ! add_matrix && objective_value(s_m) > interesting_matrices[1].subproblem_objective
@@ -308,6 +339,7 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
         end
 
         if timed_out
+            result = MOI.TIME_LIMIT
             break
         end
 
@@ -342,16 +374,17 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, type::Formul
         # Record the time for this iteration.
         push!(times_ms, (time_ns() - start) / 1_000_000.)
 
-        # Enforce the timeout before plotting, because it can be slow.
-        if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
-            result = MOI.TIME_LIMIT
-            break
-        end
+        # TODO: reintroduce plotting and its timeout.
+        # # Enforce the timeout before plotting, because it can be slow.
+        # if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
+        #     result = MOI.TIME_LIMIT
+        #     break
+        # end
 
         # If needed, plot the results. Don't plot for the last iteration,
         # as this is automatically performed (the whole solution is always
         # plotted after the main loop).
-        # if rd.plot_each_iteration # TODO: reintroduce.
+        # if rd.plot_each_iteration 
         #     rd.logmessage("== DBG == Starting to plot the results...")
         #     # plot(rd, current_routing, basename="$(rd.output_folder)/graph_it$(it)")
         # end

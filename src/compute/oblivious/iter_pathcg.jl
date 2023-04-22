@@ -172,6 +172,8 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load,
     n_new_paths = 0
     @assert rm.mu !== nothing
 
+    start = time_ns()
+
     result = nothing
     current_routing = nothing
     current_routing_nb_paths = 0
@@ -182,16 +184,16 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load,
         # Enfore the timeout (the argument has precedence over the value in
         # RoutingData, because it depends on the time elapsed in previous
         # iterations).
-        remaining_timeout = Nanosecond(0)
-        if rd.timeout.value > 0
-            remaining_timeout = rd.timeout
-        end
-        if timeout.value > 0
-            remaining_timeout = timeout
-        end
-        
         currently_elapsed_time = Nanosecond(start_iter - start)
-        if rd.timeout.value > 0 && currently_elapsed_time >= remaining_timeout
+        remaining_timeout = convert(Nanosecond, (if timeout.value > 0
+            timeout
+        elseif rd.timeout.value > 0
+            remaining_timeout = rd.timeout
+        else
+            Nanosecond(0)
+        end) - currently_elapsed_time)
+        
+        if (rd.timeout.value > 0 || timeout.value > 0) && currently_elapsed_time >= remaining_timeout
             result = MOI.TIME_LIMIT
             break
         end
@@ -243,6 +245,7 @@ function solve_subproblem(rd::RoutingData, rm::RoutingModel,
     # Solve the subproblem.
     n_new_paths = 0
     result = nothing
+    start = time_ns()
 
     while true
         start_iter = time_ns()
@@ -251,22 +254,22 @@ function solve_subproblem(rd::RoutingData, rm::RoutingModel,
         # Enfore the timeout (the argument has precedence over the value in
         # RoutingData, because it depends on the time elapsed in previous
         # iterations).
-        remaining_timeout = Nanosecond(0)
-        if rd.timeout.value > 0
-            remaining_timeout = rd.timeout
-        end
-        if timeout.value > 0
-            remaining_timeout = timeout
-        end
-        
         currently_elapsed_time = Nanosecond(start_iter - start)
-        if rd.timeout.value > 0 && currently_elapsed_time >= remaining_timeout
+        remaining_timeout = convert(Nanosecond, (if timeout.value > 0
+            timeout
+        elseif rd.timeout.value > 0
+            remaining_timeout = rd.timeout
+        else
+            Nanosecond(0)
+        end) - currently_elapsed_time)
+        
+        if (rd.timeout.value > 0 || timeout.value > 0) && currently_elapsed_time >= remaining_timeout
             result = MOI.TIME_LIMIT
             break
         end
     
         if remaining_timeout.value > 0
-            set_time_limit_sec(s_rm.model, floor(remaining_timeout, Second).value)
+            set_time_limit_sec(rm.model, floor(remaining_timeout, Second).value)
         end
 
         # Solve the current subproblem.

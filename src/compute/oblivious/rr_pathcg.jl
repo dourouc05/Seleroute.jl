@@ -20,18 +20,17 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
 
     # Main loop.
     while true
+        start_iter = time_ns()
+
         # Enforce the timeout.
-        if rd.timeout.value > 0 && Nanosecond(time_ns() - start) >= rd.timeout
+        currently_elapsed_time = Nanosecond(start_iter - start)
+        if rd.timeout.value > 0 && currently_elapsed_time >= rd.timeout
             result = MOI.TIME_LIMIT
             break
         end
 
-        start_iter = time_ns()
-
-        # Enfore the timeout. This value is much higher than it should be, because
-        # this function has no access to the starting time of `compute_routing`.
         if rd.timeout.value > 0
-            set_time_limit_sec(rm.model, floor(rd.timeout, Second).value)
+            set_time_limit_sec(rm.model, convert(Nanosecond, rd.timeout - currently_elapsed_time))
         end
 
         # Solve the current master problem.

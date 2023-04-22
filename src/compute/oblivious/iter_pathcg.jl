@@ -179,7 +179,7 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load,
     current_routing_nb_paths = 0
 
     while true
-        m = rm.model
+        start_iter = time_ns()
 
         # Enfore the timeout (the argument has precedence over the value in
         # RoutingData, because it depends on the time elapsed in previous
@@ -203,8 +203,8 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load,
         end
 
         # Solve the current master problem.
-        optimize!(m)
-        result = termination_status(m)
+        optimize!(rm.model)
+        result = termination_status(rm.model)
         current_routing = Routing(rd, value.(rm.routing)) # TODO: remember all
         # generated routings. For now, there is only one routing memorised for
         # each outer-loop iteration (when addind new matrices).

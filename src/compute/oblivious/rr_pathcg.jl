@@ -48,11 +48,12 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
         push!(objectives, objective_value(rm.model))
         current_routing_nb_paths = count(value.(rm.routing) .>= CPLEX_REDUCED_COST_TOLERANCE)
 
-        # Export if needed. TODO: use iteration number.
+        # Export if needed.
+        # TODO: use iteration number.
         _export_lp_if_allowed(rd, rm.model, "lp_master")
         _export_lp_if_failed(rd, result, rm.model, "error_master", "Subproblem could not be solved!")
 
-        # Check if there are still columns to add.
+        # Check if there are still columns to add. Also enforce the time out.
         dual_value_convexity = dual.(rm.constraints_convexity) # Demand -> dual value
         dual_values_uncer = Dict{Edge{Int}, Dict{Edge{Int}, Float64}}(
             d => Dict(e => NaN for e in edges(rd))
@@ -65,8 +66,26 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
         end
 
         start_sub = time_ns()
-        new_paths = _oblivious_reformulation_solve_pricing_problem(rd, dual_values_uncer, dual_value_convexity)
+
+        currently_elapsed_time = Nanosecond(start_sub - start)
+        remaining_timeout = convert(Nanosecond, (if rd.timeout.value > 0
+            remaining_timeout = rd.timeout
+        else
+            Nanosecond(0)
+        end) - currently_elapsed_time)
+        
+        if rd.timeout.value > 0 && currently_elapsed_time >= remaining_timeout
+            result = MOI.TIME_LIMIT
+            break
+        end
+
+        new_paths, pricing_result = _oblivious_reformulation_solve_pricing_problem(
+            rd, dual_values_uncer, dual_value_convexity, remaining_timeout)
         push!(times_sub_ms, (time_ns() - start_sub) / 1_000_000.)
+        if pricing_result != MOI.OPTIMAL
+            result = pricing_result
+            break
+        end
         n_new_paths += length(new_paths)
 
         # Add the new columns to the formulation.
@@ -132,10 +151,31 @@ function compute_routing(rd::RoutingData, ::Load, ::MinimumMaximum, ::PathFormul
                            master_model=rm)
 end
 
-function _oblivious_reformulation_solve_pricing_problem(rd::RoutingData, dual_values_uncer, dual_value_convexity)
+function _oblivious_reformulation_solve_pricing_problem(rd::RoutingData, dual_values_uncer, dual_value_convexity, timeout::Period)
+    # Return paths to add to the formulation (as a dictionary: demand and the
+    # list of paths for that demand) and a status (MOI.OPTIMAL if the pricing
+    # was performed without problem or MOI.TIME_LIMIT if the timeout was
+    # reached). 
     paths = Dict{Edge{Int}, Vector{Edge}}()
+    result = MOI.OPTIMAL
+    start = time_ns()
 
     for demand in demands(rd)
+        # Enforce the timeout.
+        currently_elapsed_time = Nanosecond(time_ns() - start)
+        remaining_timeout = convert(Nanosecond, (if timeout.value > 0
+            timeout
+        elseif rd.timeout.value > 0
+            remaining_timeout = rd.timeout
+        else
+            Nanosecond(0)
+        end) - currently_elapsed_time)
+        
+        if (rd.timeout.value > 0 || timeout.value > 0) && currently_elapsed_time >= remaining_timeout
+            result = MOI.TIME_LIMIT
+            break
+        end
+
         # Determine the weight matrix to use for the computations:
         #     for d: \sum_{e\in p} dual_{e, d}
         rd.logmessage("Pricing for $demand")
@@ -177,5 +217,5 @@ function _oblivious_reformulation_solve_pricing_problem(rd::RoutingData, dual_va
         end
     end
 
-    return paths
+    return paths, result
 end

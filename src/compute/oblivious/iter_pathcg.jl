@@ -29,10 +29,32 @@ end
 function _oblivious_iterative_solve_pricing_problem_master(rd::RoutingData,
                                                            dual_values_matrices,
                                                            dual_value_convexity,
-                                                           matrices::Vector{Dict{Edge{Int}, Float64}})
+                                                           matrices::Vector{Dict{Edge{Int}, Float64}},
+                                                           timeout::Period)
+    # Return paths to add to the formulation (as a dictionary: demand and the
+    # list of paths for that demand) and a status (MOI.OPTIMAL if the pricing
+    # was performed without problem or MOI.TIME_LIMIT if the timeout was
+    # reached). 
     paths = Dict{Edge{Int}, Vector{Edge}}()
+    result = MOI.OPTIMAL
+    start = time_ns()
 
     for demand in demands(rd)
+        # Enforce the timeout.
+        currently_elapsed_time = Nanosecond(time_ns() - start)
+        remaining_timeout = convert(Nanosecond, (if timeout.value > 0
+            timeout
+        elseif rd.timeout.value > 0
+            remaining_timeout = rd.timeout
+        else
+            Nanosecond(0)
+        end) - currently_elapsed_time)
+        
+        if (rd.timeout.value > 0 || timeout.value > 0) && currently_elapsed_time >= remaining_timeout
+            result = MOI.TIME_LIMIT
+            break
+        end
+
         # Determine the weight matrix to use for the computations:
         #     for e: \sum_{D\in\Delta} dual_{e, d_k} d_k
         rd.logmessage("Pricing for $demand")
@@ -42,7 +64,6 @@ function _oblivious_iterative_solve_pricing_problem_master(rd::RoutingData,
                 if e in keys(dual_values_matrices[matrix])
                     # Ignore positive dual values, they are mostly numerical errors.
                     if dual_values_matrices[matrix][e] >= - CPLEX_REDUCED_COST_TOLERANCE
-                        # rd.logmessage("[$matrix][$e] $(dual_values_matrices[matrix][e])")
                         continue
                     end
 
@@ -78,11 +99,18 @@ function _oblivious_iterative_solve_pricing_problem_master(rd::RoutingData,
         end
     end
 
-    return paths
+    return paths, result
 end
 
-function _oblivious_iterative_solve_pricing_problem_subproblem(rd::RoutingData, dual_values_capacity)
+function _oblivious_iterative_solve_pricing_problem_subproblem(
+        rd::RoutingData, dual_values_capacity, timeout::Period)
+    # Return paths to add to the formulation (as a dictionary: demand and the
+    # list of paths for that demand) and a status (MOI.OPTIMAL if the pricing
+    # was performed without problem or MOI.TIME_LIMIT if the timeout was
+    # reached). 
     paths = Dict{Edge{Int}, Vector{Edge}}()
+    result = MOI.OPTIMAL
+    start = time_ns()
 
     # Determine the weight matrix to use for the computations.
     weight_matrix = spzeros(Float64, n_nodes(rd), n_nodes(rd))
@@ -102,6 +130,21 @@ function _oblivious_iterative_solve_pricing_problem_subproblem(rd::RoutingData, 
 
     # Perform the actual pricing.
     for demand in demands(rd)
+        # Enforce the timeout.
+        currently_elapsed_time = Nanosecond(time_ns() - start)
+        remaining_timeout = convert(Nanosecond, (if timeout.value > 0
+            timeout
+        elseif rd.timeout.value > 0
+            remaining_timeout = rd.timeout
+        else
+            Nanosecond(0)
+        end) - currently_elapsed_time)
+        
+        if (rd.timeout.value > 0 || timeout.value > 0) && currently_elapsed_time >= remaining_timeout
+            result = MOI.TIME_LIMIT
+            break
+        end
+
         # Compute the shortest path for this demand.
         state = dijkstra_shortest_paths(rd.g, src(demand), weight_matrix)
 
@@ -124,7 +167,7 @@ function _oblivious_iterative_solve_pricing_problem_subproblem(rd::RoutingData, 
         end
     end
 
-    return paths
+    return paths, result
 end
 
 function _add_path_to_master_formulation(rd::RoutingData, rm::RoutingModel, demand::Edge, path_id::Int)
@@ -169,10 +212,9 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load,
                               ::MinimumMaximum, ::PathFormulation, ::Val{true},
                               ::CuttingPlane, ::ObliviousUncertainty,
                               ::UncertainDemand, timeout::Period)
-    n_new_paths = 0
     @assert rm.mu !== nothing
-
     start = time_ns()
+    n_new_paths = 0
 
     result = nothing
     current_routing = nothing
@@ -210,15 +252,33 @@ function solve_master_problem(rd::RoutingData, rm::RoutingModel, ::Load,
         # each outer-loop iteration (when addind new matrices).
         current_routing_nb_paths = count(value.(rm.routing) .>= CPLEX_REDUCED_COST_TOLERANCE)
 
-        # Check if there are still columns to add.
-        # Don't check for timeouts here, it should be sufficient to perform it
-        # once per iteration of column generation (instead of once per pricing
-        # subproblem).
+        # Check if there are still columns to add. Also enforce the time out.
         dual_values_matrices = Dict(tm => Dict(e => dual(constraint) for (e, constraint) in d) for (tm, d) in rm.constraints_matrices)
         dual_value_convexity = dual.(rm.constraints_convexity)
         matrices = collect(keys(rm.constraints_matrices))
 
-        new_paths = _oblivious_iterative_solve_pricing_problem_master(rd, dual_values_matrices, dual_value_convexity, matrices)
+        currently_elapsed_time = Nanosecond(time_ns() - start)
+        remaining_timeout = convert(Nanosecond, (if timeout.value > 0
+            timeout
+        elseif rd.timeout.value > 0
+            remaining_timeout = rd.timeout
+        else
+            Nanosecond(0)
+        end) - currently_elapsed_time)
+        
+        if (rd.timeout.value > 0 || timeout.value > 0) && currently_elapsed_time >= remaining_timeout
+            result = MOI.TIME_LIMIT
+            break
+        end
+
+        new_paths, pricing_result =
+            _oblivious_iterative_solve_pricing_problem_master(
+                rd, dual_values_matrices, dual_value_convexity, matrices,
+                remaining_timeout)
+        if pricing_result != MOI.OPTIMAL
+            result = pricing_result
+            break
+        end
         n_new_paths += length(new_paths)
 
         if length(new_paths) == 0
@@ -277,13 +337,30 @@ function solve_subproblem(rd::RoutingData, rm::RoutingModel,
         result = termination_status(s_rm.model)
 
         # Check if there are still columns to add.
-        # Don't check for timeouts here, it should be sufficient to perform it
-        # once per iteration of column generation (instead of once per pricing
-        # subproblem).
         dual_values_capacity = Dict(e => dual(constraint) for (e, constraint) in s_rm.constraints_capacity)
 
+        currently_elapsed_time = Nanosecond(time_ns() - start)
+        remaining_timeout = convert(Nanosecond, (if timeout.value > 0
+            timeout
+        elseif rd.timeout.value > 0
+            remaining_timeout = rd.timeout
+        else
+            Nanosecond(0)
+        end) - currently_elapsed_time)
+        
+        if (rd.timeout.value > 0 || timeout.value > 0) && currently_elapsed_time >= remaining_timeout
+            result = MOI.TIME_LIMIT
+            break
+        end
+
         rd.logmessage("Subpricing for edge $e_bar")
-        new_paths = _oblivious_iterative_solve_pricing_problem_subproblem(rd, dual_values_capacity)
+        new_paths, pricing_result =
+            _oblivious_iterative_solve_pricing_problem_subproblem(
+                rd, dual_values_capacity, remaining_timeout)
+        if pricing_result != MOI.OPTIMAL
+            result = pricing_result
+            break
+        end
         n_new_paths += length(new_paths)
 
         if length(new_paths) == 0

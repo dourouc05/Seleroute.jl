@@ -125,7 +125,7 @@ function _oblivious_iterative_solve_pricing_problem_subproblem(
     end
 
     if ! _check_weight_matrix(weight_matrix)
-        return paths
+        return paths, result
     end
 
     # Perform the actual pricing.

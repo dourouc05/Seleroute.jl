@@ -322,6 +322,7 @@ function _debug_infeasibility_mmf(rd::RoutingData, status::MOI.TerminationStatus
 
         # Exit with an error.
         _export_lp_if_failed(rd, status, m, "error_$(n_iter)", "Current problem could not be solved!")
+        error("Current problem could not be solved!")
     end
 end
 

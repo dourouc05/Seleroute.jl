@@ -15,6 +15,5 @@ function _export_lp_if_failed(rd::RoutingData, status::MOI.TerminationStatusCode
         end
 
         rd.logmessage("$(errmsg) Error code: $(status)")
-        error("$(errmsg) Error code: $(status)")
     end
 end

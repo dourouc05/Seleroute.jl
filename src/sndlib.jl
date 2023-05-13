@@ -40,14 +40,14 @@
 struct SNDlibNativeFormat <: Graphs.AbstractGraphFormat end
 struct SNDlibXMLFormat <: Graphs.AbstractGraphFormat end # Unimplemented for now.
 
-@enum SNDlibNativeSection begin 
-    Header
-    Meta
-    Nodes
-    Links
-    Demands
-    AdmissiblePaths
-    AdmissiblePathsForDemand
+@enum _SNDlibNativeSection begin 
+    _Header
+    _Meta
+    _Nodes
+    _Links
+    _Demands
+    _AdmissiblePaths
+    _AdmissiblePathsForDemand
 end
 # The section "Header" is also used between two sections, when one is ended and
 # another one has not yet started.
@@ -132,7 +132,7 @@ function loadsnd(io::IO; error_on_admissible_path::Bool = true)
     k = MetaDiGraph() # Demands.
 
     has_seen_header = false
-    current_section = Header
+    current_section = _Header
     vertex_name_to_id = Dict{String, Int}() # Built in the Nodes section.
 
     for line in readlines(io)
@@ -149,7 +149,7 @@ function loadsnd(io::IO; error_on_admissible_path::Bool = true)
 
             # Recognise the graph name in some comments (not standardised),
             # only in the header (not found anywhere else).
-            if current_section == Header && startswith(line, "network")
+            if current_section == _Header && startswith(line, "network")
                 line = strip(line[8:end])
                 set_prop!(g, :graph_name, line)
                 continue
@@ -160,44 +160,44 @@ function loadsnd(io::IO; error_on_admissible_path::Bool = true)
         end
 
         # Detect the section opening, if any.
-        if current_section == Header && endswith(line, "(")
+        if current_section == _Header && endswith(line, "(")
             if occursin("META", line)
-                current_section = Meta
+                current_section = _Meta
             elseif occursin("NODES", line)
-                current_section = Nodes
+                current_section = _Nodes
             elseif occursin("LINKS", line)
-                current_section = Links
+                current_section = _Links
             elseif occursin("DEMANDS", line)
-                current_section = Demands
+                current_section = _Demands
             elseif occursin("ADMISSIBLE_PATHS", line)
-                current_section = AdmissiblePaths
+                current_section = _AdmissiblePaths
             end
 
-            if current_section == AdmissiblePaths
-                current_section = AdmissiblePathsForDemand
+            if current_section == _AdmissiblePaths
+                current_section = _AdmissiblePathsForDemand
             end
 
-            if current_section != Header
+            if current_section != _Header
                 continue
             end
         end
-        if current_section == AdmissiblePaths && endswith(line, "(")
-            current_section = AdmissiblePathsForDemand
+        if current_section == _AdmissiblePaths && endswith(line, "(")
+            current_section = _AdmissiblePathsForDemand
             continue
         end
 
         # Detect the section ending, if any.
-        if current_section != Header && line == ")"
-            current_section = if current_section == AdmissiblePathsForDemand
-                AdmissiblePaths
+        if current_section != _Header && line == ")"
+            current_section = if current_section == _AdmissiblePathsForDemand
+                _AdmissiblePaths
             else
-                Header
+                _Header
             end
             continue
         end
 
         # Read the header line.
-        if current_section == Header && startswith(line, '?') # Header.
+        if current_section == _Header && startswith(line, '?') # Header.
             # Expected header (only networks supported):
             # ?SNDlib native format; type: network; version: 1.0
             EXPECTED_NO_WHITESPACE_HEADER = "SNDlibnativeformattypenetworkversion10"
@@ -217,15 +217,15 @@ function loadsnd(io::IO; error_on_admissible_path::Bool = true)
         end
 
         # All special cases are handled above: read the line as a part of the section.
-        if current_section == Header
+        if current_section == _Header
             error("Inconsistent state: while in Header section, encountered ",
                 "the line \"", line_stripped, "\"; expected a new section")
-        elseif current_section == Meta
+        elseif current_section == _Meta
             property, value = split(line, '=', limit=2)
             property = strip(property)
             value = strip(value)
             set_prop!(g, Symbol(property), value)
-        elseif current_section == Nodes
+        elseif current_section == _Nodes
             # Node format:
             #     node_id ( x-coordinate y-coordinate )
             m = match(REGEX_NODE, line)
@@ -251,7 +251,7 @@ function loadsnd(io::IO; error_on_admissible_path::Bool = true)
             set_prop!(k, nv(k), :vertex_id, m["id"])
 
             vertex_name_to_id[m["id"]] = nv(g)
-        elseif current_section == Links
+        elseif current_section == _Links
             # Link format:
             #     link_id ( source_id  target_id ) preinstalled_cap \
             #     preinstalled_cost routing_cost setup_cost \
@@ -286,7 +286,7 @@ function loadsnd(io::IO; error_on_admissible_path::Bool = true)
             set_prop!(g, Edge(src_id, dst_id), :routing_cost, parse_int_or_float(m["routing_cost"]))
             set_prop!(g, Edge(src_id, dst_id), :setup_cost, parse_int_or_float(m["setup_cost"]))
             set_prop!(g, Edge(src_id, dst_id), :capacity_cost, capacity_costs)
-        elseif current_section == Demands
+        elseif current_section == _Demands
             # Demand format:
             #     demand_id ( source_id  target_id ) routing_unit \ 
             #     demand_value max_path_length
@@ -304,13 +304,13 @@ function loadsnd(io::IO; error_on_admissible_path::Bool = true)
             set_prop!(k, Edge(src_id, dst_id), :routing_unit, parse_int_or_float(m["routing_unit"]))
             set_prop!(k, Edge(src_id, dst_id), :demand_value, parse_int_or_float(m["demand_value"]))
             set_prop!(k, Edge(src_id, dst_id), :max_path_length, parse_int_or_float_or_unlimited(m["max_path_length"]))
-        elseif current_section == AdmissiblePaths
+        elseif current_section == _AdmissiblePaths
             # Only case where admissible paths are expected to work: an empty
             # list. Rationale: how would you return them? A third value?
             if error_on_admissible_path
                 error("Admissible paths are not supported")
             end
-        elseif current_section == AdmissiblePathsForDemand
+        elseif current_section == _AdmissiblePathsForDemand
             if error_on_admissible_path
                 # In theory, upon reaching a line within the ADMISSIBLE_PATHS
                 # section, parsing should stop; hence, this line should never
